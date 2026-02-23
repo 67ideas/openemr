@@ -8,6 +8,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.46",
     "@ai-sdk/openai": "^3.0.30",
     "ai": "^6.0.97",
     "dotenv": "^17.3.1",

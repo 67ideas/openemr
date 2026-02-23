@@ -44,7 +44,12 @@ export async function runAgent(
   let safetyPrefix = "";
 
   const result = await generateText({
-    model: gateway("openai/gpt-oss-120b"),
+    model: gateway("anthropic/claude-haiku-4-5"),
+    providerOptions: {
+      anthropic: {
+        thinking: { type: "enabled", budgetTokens: 8000 },
+      },
+    },
     tools: {
       drugInteractionTool,
       icd10LookupTool,
