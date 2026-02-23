@@ -4,6 +4,8 @@ import { appendMessage, getHistory } from "./memory/conversationStore.js";
 import { drugInteractionTool } from "./tools/drugInteraction.js";
 import { icd10LookupTool } from "./tools/icd10Lookup.js";
 import { medicationInfoTool } from "./tools/medicationInfo.js";
+import { symptomLookupTool } from "./tools/symptomLookup.js";
+import { providerSearchTool } from "./tools/providerSearch.js";
 import {
   buildSafetyPrefix,
   verifyDrugInteractionResult,
@@ -13,14 +15,16 @@ import type { DrugInteractionResult } from "./tools/drugInteraction.js";
 const CLINICAL_SYSTEM_PROMPT = `You are a clinical decision-support assistant helping healthcare professionals with informational queries.
 
 You have access to the following tools:
-- drugInteractionTool: Check for interactions between two drugs using OpenFDA label data
-- icd10LookupTool: Look up ICD-10-CM codes by symptom or condition
-- medicationInfoTool: Get RxNorm drug class and dosage form information
+- drugInteractionTool: Check for interactions between two drugs. Accepts an optional patientId to use that patient's actual medication list from OpenEMR and query RxNorm; without a patientId uses OpenFDA label data.
+- icd10LookupTool: Look up ICD-10-CM codes by symptom or condition name using the NLM public API.
+- medicationInfoTool: Get RxNorm drug class and dosage form information for a medication.
+- symptomLookupTool: Search medical problems and conditions recorded in OpenEMR. Accepts an optional patientUuid to retrieve a specific patient's problem list, or a query string to search across all conditions.
+- providerSearchTool: Search for healthcare providers (practitioners) in OpenEMR by name, specialty, or NPI number.
 
 Guidelines:
 - Always use tools to retrieve factual clinical data rather than relying on your own memory
 - Present drug interaction findings with their severity level
-- Always cite the data source (OpenFDA, NLM ICD-10-CM, RxNorm)
+- Always cite the data source (OpenFDA, RxNorm, NLM ICD-10-CM, OpenEMR)
 - If a tool returns an error, acknowledge it gracefully and explain what information could not be retrieved
 - This system uses synthetic patient data for development purposes only
 - Never provide definitive medical advice — always recommend consulting a licensed clinician`;
@@ -45,6 +49,8 @@ export async function runAgent(
       drugInteractionTool,
       icd10LookupTool,
       medicationInfoTool,
+      symptomLookupTool,
+      providerSearchTool,
     },
     stopWhen: stepCountIs(5),
     messages: [
