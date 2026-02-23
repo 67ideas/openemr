@@ -1,6 +1,7 @@
 # Monday (2024-06-10)
 
 - importing Synthea data
+- first tasks started based on architecture plan + MVP requirements
 
 # Tuesday (2024-06-11)
 
