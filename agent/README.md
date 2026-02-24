@@ -11,14 +11,14 @@ A CLI-based clinical decision-support agent that combines OpenEMR patient data w
 
 ### 1. Start OpenEMR
 
+The `docker/development-easy` directory contains a preconfigured Docker Compose setup for quickly running OpenEMR and its dependencies in a local development environment. This makes it easy to spin up the full OpenEMR stack with a single command.
+
 From the repo root:
 
-# The `docker/development-easy` directory contains a preconfigured Docker Compose setup for quickly running OpenEMR and its dependencies in a local development environment.
-
-# This makes it easy to spin up the full OpenEMR stack with a single command.
-
+```bash
 cd docker/development-easy
 docker compose up --detach --wait
+```
 
 - **OpenEMR UI:** http://localhost:8300 (or https://localhost:9300 for SSL)
 - **Login:** `admin` / `pass`
