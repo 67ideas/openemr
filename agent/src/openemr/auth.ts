@@ -17,19 +17,25 @@ export async function getOpenEMRToken(): Promise<string> {
   const baseUrl = process.env.OPENEMR_BASE_URL;
   const clientId = process.env.OPENEMR_CLIENT_ID;
   const clientSecret = process.env.OPENEMR_CLIENT_SECRET;
+  const username = process.env.OPENEMR_USERNAME ?? "admin";
+  const password = process.env.OPENEMR_PASSWORD ?? "pass";
 
-  if (!baseUrl || !clientId || !clientSecret) {
+  if (!baseUrl || !clientId) {
     throw new Error(
-      "Missing OpenEMR credentials. Set OPENEMR_BASE_URL, OPENEMR_CLIENT_ID, and OPENEMR_CLIENT_SECRET in agent/.env"
+      "Missing OpenEMR credentials. Set OPENEMR_BASE_URL and OPENEMR_CLIENT_ID in agent/.env"
     );
   }
 
-  const params = new URLSearchParams({
-    grant_type: "client_credentials",
+  const paramMap: Record<string, string> = {
+    grant_type: "password",
     client_id: clientId,
-    client_secret: clientSecret,
-    scope: "system/Patient.rs system/Condition.rs system/Practitioner.rs system/MedicationRequest.rs",
-  });
+    username,
+    password,
+    user_role: "users",
+    scope: "openid api:oemr api:fhir user/patient.read user/practitioner.read user/Patient.read user/Practitioner.read user/MedicationRequest.read user/Condition.read user/appointment.read",
+  };
+  if (clientSecret) paramMap.client_secret = clientSecret;
+  const params = new URLSearchParams(paramMap);
 
   const res = await fetch(`${baseUrl}/oauth2/default/token`, {
     method: "POST",

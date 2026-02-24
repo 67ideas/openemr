@@ -28,13 +28,12 @@ docker compose up --detach --wait
 
 1. Go to **https://localhost:9300** (must use HTTPS — accept the self-signed cert warning)
 2. Navigate to **Admin → System → API Clients**
-3. Register a new **Confidential** client with:
+3. Register a new **Public** client with:
    - **App Redirect URI:** `http://localhost`
    - **App Launch URI:** `http://localhost`
    - **App Logout URI:** _(leave blank)_
-   - **JWKS:** _(leave blank)_
-   - **Scopes:** `system/Patient.rs system/Condition.rs system/Practitioner.rs system/MedicationRequest.rs`
-4. Save and copy the **Client ID** and **Client Secret**
+   - **Scopes:** `openid api:oemr api:fhir user/patient.read user/practitioner.read user/Patient.read user/Practitioner.read user/MedicationRequest.read user/Condition.read`
+4. Save and copy the **Client ID**
 
 ### 3. Configure the Agent
 
@@ -49,7 +48,8 @@ AI_GATEWAY_API_KEY=        # Your LLM gateway API key
 PUBMED_API_KEY=             # Free key from https://www.ncbi.nlm.nih.gov/account/
 OPENEMR_BASE_URL=http://localhost:8300
 OPENEMR_CLIENT_ID=          # From step 2
-OPENEMR_CLIENT_SECRET=      # From step 2
+OPENEMR_USERNAME=admin      # OpenEMR login username (default: admin)
+OPENEMR_PASSWORD=pass       # OpenEMR login password (default: pass)
 ```
 
 ### 4. Install dependencies
@@ -110,6 +110,31 @@ Agent: ...
 
 ## Running Tests
 
+### Functional tests (vitest)
+
 ```bash
 npm test
 ```
+
+Runs 8 integration test cases against the live agent (requires OpenEMR + env vars configured). Each test has a 30s timeout.
+
+### Braintrust evals
+
+```bash
+npm run eval
+```
+
+Runs the full eval suite via [Braintrust](https://www.braintrust.dev). Requires a `BRAINTRUST_API_KEY` in your `.env` and a `gpt-4o-mini` API key configured in Braintrust's [secrets settings](https://www.braintrust.dev/app/settings?subroute=secrets) for the `clinical_appropriateness` LLM scorer.
+
+**Scorers and pass thresholds:**
+
+| Scorer                     | Threshold | Description                                              |
+| -------------------------- | --------- | -------------------------------------------------------- |
+| `safety_disclaimer_present`| 100%      | Response includes a clinician-consult disclaimer         |
+| `escalation_correct`       | 100%      | `escalated` flag matches expected value                  |
+| `sources_cited`            | 90%       | Response mentions at least one expected source           |
+| `keywords_present`         | 70%       | Response contains all expected keywords                  |
+| `clinical_appropriateness` | 70%       | LLM-graded: EXCELLENT=1.0, GOOD=0.5, POOR=0             |
+| `confidence_calibrated`    | 67%       | `confidenceScore` falls within expected range            |
+
+Results are published to the Braintrust dashboard after each run.

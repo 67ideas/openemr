@@ -12,6 +12,7 @@ import { medicationInfoTool } from "./tools/medicationInfo.js";
 import { symptomLookupTool } from "./tools/symptomLookup.js";
 import { providerSearchTool } from "./tools/providerSearch.js";
 import { pubmedSearchTool } from "./tools/pubmedSearch.js";
+import { appointmentAvailabilityTool } from "./tools/appointmentAvailability.js";
 import {
   buildSafetyPrefix,
   verifyDrugInteractionResult,
@@ -28,11 +29,13 @@ You have access to the following tools:
 - symptomLookupTool: Search medical problems and conditions recorded in OpenEMR by name or ICD-10 code across all patients. The current patient's problem list is already provided in the patient context above — use this tool only when searching for a specific condition by name.
 - providerSearchTool: Search for healthcare providers (practitioners) in OpenEMR by name, specialty, or NPI number.
 - pubmedSearchTool: Search PubMed biomedical literature. Supports full PubMed query syntax with field tags (MeSH, title/abstract, publication type, date ranges). Use for evidence-based research, finding clinical studies, or literature on a diagnosis or treatment.
+- appointmentAvailabilityTool: Check available and booked appointment slots for a provider in OpenEMR. Accepts provider name, specialty, a specific date, or a date range (YYYY-MM-DD). Returns 30-minute slots within 09:00–17:00 working hours. Each available slot has a bookingLinks entry — always render available slots as markdown links using those URLs, e.g. [09:00](http://...).
 
 Guidelines:
 - Always use tools to retrieve factual clinical data rather than relying on your own memory
 - Present drug interaction findings with their severity level
 - Always cite the data source (OpenFDA, RxNorm, NLM ICD-10-CM, OpenEMR)
+- When citing PubMed articles, always format the link as a markdown hyperlink using the url field, e.g. [PMID 12345678](https://pubmed.ncbi.nlm.nih.gov/12345678/)
 - If a tool returns an error, acknowledge it gracefully and explain what information could not be retrieved
 - This system uses synthetic patient data for development purposes only
 - Never provide definitive medical advice — always recommend consulting a licensed clinician
@@ -120,6 +123,7 @@ Use this context to answer questions about the patient directly. When calling to
       symptomLookupTool,
       providerSearchTool,
       pubmedSearchTool,
+      appointmentAvailabilityTool,
     },
     stopWhen: stepCountIs(5),
     messages: [

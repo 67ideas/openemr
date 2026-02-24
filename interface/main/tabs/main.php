@@ -765,6 +765,10 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
 .ai-msg.assistant p { margin: 0 0 0.4em; }
 .ai-msg.assistant p:last-child { margin-bottom: 0; }
 .ai-msg.assistant ul, .ai-msg.assistant ol { padding-left: 1.25em; margin: 0.25em 0; }
+.ai-msg.assistant ul.pill-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; margin: 0.4em 0; }
+.ai-msg.assistant ul.pill-list li { padding: 0; }
+.ai-msg.assistant ul.pill-list li a { display: inline-block; padding: 4px 12px; background: #e8f0fe; color: #1a73e8; border-radius: 20px; font-size: 0.82rem; font-weight: 500; text-decoration: none; border: 1px solid #c5d8fb; transition: background 0.15s, color 0.15s; }
+.ai-msg.assistant ul.pill-list li a:hover { background: #1a73e8; color: #fff; border-color: #1a73e8; }
 .ai-msg.assistant pre { background: #f1f3f5; border-radius: 6px; padding: 8px; overflow-x: auto; font-size: 0.8rem; margin: 0.4em 0; }
 .ai-msg.assistant code { background: #f1f3f5; border-radius: 3px; padding: 1px 4px; font-size: 0.82em; }
 .ai-msg.assistant pre code { background: none; padding: 0; }
@@ -1019,6 +1023,23 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
         }
     }
 
+    function stylePillLists(div) {
+        div.querySelectorAll('ul').forEach(function(ul) {
+            var items = Array.from(ul.querySelectorAll(':scope > li'));
+            if (items.length === 0) return;
+            var allLinks = items.every(function(li) {
+                var links = li.querySelectorAll('a');
+                return links.length === 1 && li.textContent.trim() === links[0].textContent.trim();
+            });
+            if (allLinks) {
+                ul.classList.add('pill-list');
+                items.forEach(function(li) {
+                    li.querySelector('a').setAttribute('target', '_blank');
+                });
+            }
+        });
+    }
+
     function appendMessage(text, role, meta) {
         var div = document.createElement('div');
         div.className = 'ai-msg ' + role;
@@ -1026,6 +1047,7 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
         if (role === 'assistant') {
             div.innerHTML = DOMPurify.sanitize(marked.parse(text));
             styleMetadataChips(div);
+            stylePillLists(div);
         } else {
             div.textContent = text;
         }

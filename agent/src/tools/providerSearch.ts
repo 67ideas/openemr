@@ -49,13 +49,13 @@ export const providerSearchTool = tool({
       const baseUrl = process.env.OPENEMR_BASE_URL ?? "http://localhost:8300";
       const token = await getOpenEMRToken();
 
+      const toTitleCase = (s: string) =>
+        s.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
       const params = new URLSearchParams();
-      if (name) {
-        // Search both first and last name fields
-        params.set("lname", name);
-      }
-      if (specialty) params.set("specialty", specialty);
       if (npi) params.set("npi", npi);
+      if (name) params.set("lname", toTitleCase(name));
+      if (specialty) params.set("specialty", toTitleCase(specialty));
 
       const url = `${baseUrl}/apis/default/api/practitioner${params.toString() ? `?${params}` : ""}`;
 
@@ -74,7 +74,16 @@ export const providerSearchTool = tool({
       }
 
       const data = (await res.json()) as { data?: OpenEMRPractitioner[] };
-      const raw = data.data ?? [];
+      let raw = data.data ?? [];
+
+      // Deduplicate by NPI to avoid duplicates from multiple seed runs
+      const seen = new Set<string>();
+      raw = raw.filter((p) => {
+        const key = p.npi ?? p.uuid ?? "";
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
       const providers = raw.map((p) => ({
         uuid: p.uuid ?? "",

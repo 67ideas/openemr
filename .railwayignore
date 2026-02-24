@@ -1,0 +1,33 @@
+# Large non-runtime directories
+Documentation/
+contrib/
+tests/
+ci/
+
+# Dev/build tools
+docker/
+node_modules/
+vendor/
+ccdaservice/node_modules/
+public/assets/
+public/themes/
+
+# Git / IDE
+.git/
+.github/
+.idea/
+.vscode/
+.vscode-oss/
+nbproject/
+
+# Logs / temp
+logs/
+tmp-phpstan/
+coverage/
+*.log
+
+# CI config
+.pre-commit-config.yaml
+codecov.yml
+cloudbuild.yaml
+build.xml

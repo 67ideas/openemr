@@ -7,6 +7,7 @@ export type PubMedArticle = {
   pmid: string;
   title: string;
   abstract: string;
+  url: string;
 };
 
 export type PubMedSearchResult = {
@@ -97,7 +98,7 @@ export const pubmedSearchTool = tool({
           extractBetween(articleBlock, "<AbstractText>", "</AbstractText>")
         );
 
-        return { pmid, title: title || "(no title)", abstract: abstract || "(no abstract)" };
+        return { pmid, title: title || "(no title)", abstract: abstract || "(no abstract)", url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/` };
       });
 
       return { articles, total: Number(count), source: "PubMed" };
