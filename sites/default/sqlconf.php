@@ -2,11 +2,11 @@
 //  OpenEMR
 //  MySQL Config
 
-$host   = 'localhost';
-$port   = '3306';
-$login  = 'openemr';
-$pass   = 'openemr';
-$dbase  = 'openemr';
+$host   = getenv('MYSQL_HOST') ?: 'mysql';
+$port   = getenv('MYSQL_PORT') ?: '3306';
+$login  = getenv('MYSQL_USER') ?: 'openemr';
+$pass   = getenv('MYSQL_PASS') ?: 'openemr';
+$dbase  = getenv('MYSQL_DATABASE') ?: 'openemr';
 
 $sqlconf = [];
 global $sqlconf;
@@ -20,7 +20,7 @@ $sqlconf["dbase"] = $dbase;
 //////////////////////////
 //////////////////////////
 //////DO NOT TOUCH THIS///
-$config = 0; /////////////
+$config = 1; /////////////
 //////////////////////////
 //////////////////////////
 //////////////////////////

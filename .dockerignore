@@ -5,6 +5,7 @@ node_modules/
 vendor/
 ccdaservice/node_modules/
 public/assets/
+!public/assets/modified/
 public/themes/
 
 # Editor/IDE
