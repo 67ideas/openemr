@@ -485,9 +485,7 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
             // fire off a nav event
             $dispatcher->dispatch(new RenderEvent(), RenderEvent::EVENT_BODY_RENDER_NAV);
             ?>
-            <button id="ai-chat-toggle" class="btn btn-sm btn-secondary ml-2" title="<?php echo xla('AI Assistant'); ?>" style="white-space:nowrap;">
-                <i class="fas fa-robot"></i>
-            </button>
+            
         </nav>
         <div id="attendantData" class="body_title acck" data-bind="template: {name: app_view_model.attendant_template_type, data: application_data}"></div>
         <div class="body_title pt-1" id="tabs_div" data-bind="template: {name: 'tabs-controls', data: application_data}"></div>
@@ -542,21 +540,56 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
 
     ?>
 <style>
+#ai-chat-fab {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #343a40;
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1060;
+    transition: right 0.3s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+#ai-chat-fab:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+#ai-chat-fab.panel-open {
+    right: 408px;
+}
 #ai-chat-panel {
     position: fixed;
     top: 0;
-    right: -400px;
+    right: -380px;
     width: 380px;
     height: 100vh;
     background: #fff;
     border-left: 1px solid #dee2e6;
-    box-shadow: -4px 0 16px rgba(0,0,0,0.12);
+    border-top-left-radius: 12px;
+    border-bottom-left-radius: 12px;
+    box-shadow: -4px 0 24px rgba(0,0,0,0.15);
     z-index: 1050;
     display: flex;
     flex-direction: column;
     transition: right 0.3s ease;
+    overflow: hidden;
 }
 #ai-chat-panel.open { right: 0; }
+#mainBox {
+    transition: margin-right 0.3s ease;
+}
+#mainBox.ai-open {
+    margin-right: 380px;
+}
 #ai-chat-header {
     display: flex;
     align-items: center;
@@ -582,9 +615,9 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     border-radius: 12px;
     font-size: 0.875rem;
     line-height: 1.5;
-    white-space: pre-wrap;
     word-break: break-word;
 }
+.ai-msg.user { white-space: pre-wrap; }
 .ai-msg.user {
     align-self: flex-end;
     background: #0069d9;
@@ -614,11 +647,22 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     resize: none;
     font-size: 0.875rem;
 }
+.ai-msg.assistant p { margin: 0 0 0.4em; }
+.ai-msg.assistant p:last-child { margin-bottom: 0; }
+.ai-msg.assistant ul, .ai-msg.assistant ol { padding-left: 1.25em; margin: 0.25em 0; }
+.ai-msg.assistant pre { background: #f1f3f5; border-radius: 6px; padding: 8px; overflow-x: auto; font-size: 0.8rem; margin: 0.4em 0; }
+.ai-msg.assistant code { background: #f1f3f5; border-radius: 3px; padding: 1px 4px; font-size: 0.82em; }
+.ai-msg.assistant pre code { background: none; padding: 0; }
+.ai-msg.assistant h1, .ai-msg.assistant h2, .ai-msg.assistant h3 { font-size: 0.95rem; font-weight: 600; margin: 0.5em 0 0.25em; }
+.ai-msg.assistant table { border-collapse: collapse; font-size: 0.82rem; margin: 0.4em 0; }
+.ai-msg.assistant th, .ai-msg.assistant td { border: 1px solid #dee2e6; padding: 3px 8px; }
 </style>
+
+<button id="ai-chat-fab" title="<?php echo xla('AI Assistant'); ?>">✨</button>
 
 <div id="ai-chat-panel">
     <div id="ai-chat-header">
-        <span><i class="fas fa-robot mr-2"></i><?php echo xlt('AI Assistant'); ?></span>
+        <span>✨ <?php echo xlt('AI Assistant'); ?></span>
         <button id="ai-chat-close" class="btn btn-sm btn-outline-light py-0 px-2">&times;</button>
     </div>
     <div id="ai-chat-messages"></div>
@@ -630,20 +674,37 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
 <script>
 (function () {
     var SESSION_ID = 'ai-' + Date.now();
     var AGENT_URL = 'http://localhost:3001/chat';
 
     var panel   = document.getElementById('ai-chat-panel');
-    var toggle  = document.getElementById('ai-chat-toggle');
+    var toggle  = document.getElementById('ai-chat-fab');
     var close   = document.getElementById('ai-chat-close');
     var input   = document.getElementById('ai-chat-input');
     var send    = document.getElementById('ai-chat-send');
     var messages = document.getElementById('ai-chat-messages');
 
-    toggle.addEventListener('click', function () { panel.classList.toggle('open'); });
-    close.addEventListener('click', function () { panel.classList.remove('open'); });
+    var mainBox = document.getElementById('mainBox');
+
+    function openPanel() {
+        panel.classList.add('open');
+        mainBox.classList.add('ai-open');
+        toggle.classList.add('panel-open');
+    }
+    function closePanel() {
+        panel.classList.remove('open');
+        mainBox.classList.remove('ai-open');
+        toggle.classList.remove('panel-open');
+    }
+
+    toggle.addEventListener('click', function () {
+        panel.classList.contains('open') ? closePanel() : openPanel();
+    });
+    close.addEventListener('click', closePanel);
 
     input.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -654,7 +715,11 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
         var div = document.createElement('div');
         div.className = 'ai-msg ' + role;
         if (meta && meta.escalated) div.classList.add('escalated');
-        div.textContent = text;
+        if (role === 'assistant') {
+            div.innerHTML = DOMPurify.sanitize(marked.parse(text));
+        } else {
+            div.textContent = text;
+        }
         messages.appendChild(div);
         if (meta && meta.confidenceScore !== undefined) {
             var m = document.createElement('div');
