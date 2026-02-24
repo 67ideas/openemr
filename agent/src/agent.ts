@@ -1,6 +1,11 @@
 import "dotenv/config";
 import { generateText, gateway, stepCountIs } from "ai";
+import { initLogger, traced, wrapAISDKModel } from "braintrust";
 import { appendMessage, getHistory } from "./memory/conversationStore.js";
+
+if (process.env.BRAINTRUST_API_KEY) {
+  initLogger({ projectName: "clinical-agent", asyncFlush: true });
+}
 import { drugInteractionTool } from "./tools/drugInteraction.js";
 import { icd10LookupTool } from "./tools/icd10Lookup.js";
 import { medicationInfoTool } from "./tools/medicationInfo.js";
@@ -46,13 +51,28 @@ export async function runAgent(
   userMessage: string,
   sessionId: string,
 ): Promise<AgentResponse> {
+  return traced(
+    async (span) => {
+      span.log({ input: userMessage, metadata: { sessionId } });
+      const response = await _runAgent(userMessage, sessionId);
+      span.log({ output: response.text, scores: { confidence: response.confidenceScore / 100 } });
+      return response;
+    },
+    { name: "runAgent" },
+  );
+}
+
+async function _runAgent(
+  userMessage: string,
+  sessionId: string,
+): Promise<AgentResponse> {
   const history = getHistory(sessionId);
 
   let escalated = false;
   let safetyPrefix = "";
 
   const result = await generateText({
-    model: gateway("anthropic/claude-haiku-4-5"),
+    model: wrapAISDKModel(gateway("anthropic/claude-haiku-4-5")),
     providerOptions: {
       anthropic: {
         thinking: { type: "enabled", budgetTokens: 8000 },
@@ -100,3 +120,4 @@ export async function runAgent(
 
   return { text: finalText, escalated, confidenceScore };
 }
+
