@@ -29,11 +29,16 @@ Guidelines:
 - Always cite the data source (OpenFDA, RxNorm, NLM ICD-10-CM, OpenEMR)
 - If a tool returns an error, acknowledge it gracefully and explain what information could not be retrieved
 - This system uses synthetic patient data for development purposes only
-- Never provide definitive medical advice — always recommend consulting a licensed clinician`;
+- Never provide definitive medical advice — always recommend consulting a licensed clinician
+
+At the end of every response, on its own line, append exactly:
+CONFIDENCE: <number>
+where <number> is an integer 0–100 reflecting how confident you are in the accuracy and completeness of your answer. Base this on: whether tools returned data (vs. errors or empty results), data source quality, and query specificity. Do not explain the score.`;
 
 export type AgentResponse = {
   text: string;
   escalated: boolean;
+  confidenceScore: number;
 };
 
 export async function runAgent(
@@ -86,7 +91,11 @@ export async function runAgent(
   appendMessage(sessionId, { role: "user", content: userMessage });
   appendMessage(sessionId, { role: "assistant", content: result.text });
 
-  const finalText = safetyPrefix ? `${safetyPrefix}${result.text}` : result.text;
+  const confidenceMatch = result.text.match(/\nCONFIDENCE:\s*(\d+)\s*$/);
+  const confidenceScore = confidenceMatch ? Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10))) : 50;
+  const cleanText = result.text.replace(/\nCONFIDENCE:\s*\d+\s*$/, "").trimEnd();
 
-  return { text: finalText, escalated };
+  const finalText = safetyPrefix ? `${safetyPrefix}${cleanText}` : cleanText;
+
+  return { text: finalText, escalated, confidenceScore };
 }

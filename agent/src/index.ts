@@ -31,11 +31,12 @@ async function main() {
     if (!trimmed) continue;
 
     try {
-      const { text, escalated } = await runAgent(trimmed, SESSION_ID);
+      const { text, escalated, confidenceScore } = await runAgent(trimmed, SESSION_ID);
       if (escalated) {
         console.log("\n[ESCALATED — HIGH-RISK OUTPUT]");
       }
-      console.log(`\nAgent: ${text}\n`);
+      console.log(`\nAgent: ${text}`);
+      console.log(`[Confidence: ${confidenceScore}/100]\n`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`\n[Error] ${msg}\n`);
