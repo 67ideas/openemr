@@ -1,5 +1,11 @@
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('authUser').value = 'admin';
+        document.getElementById('clearPass').value = 'pass';
+        document.getElementById('login_form').submit();
+    });
+
     function transmit_form(element) {
     // disable submit button to insert a notification of working
     element.disabled = true;

@@ -77,6 +77,18 @@
     "menu_id": "patimg",
     "children": [
       {
+        "label": "See All",
+        "menu_id": "fin0",
+        "target": "fin",
+        "url": "/interface/main/finder/dynamic_finder.php",
+        "children": [],
+        "requirement": 0,
+        "acl_req": [
+          "patients",
+          "demo"
+        ]
+      },
+      {
         "label": "New/Search",
         "menu_id": "new0",
         "target": "pat",

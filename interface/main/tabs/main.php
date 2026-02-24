@@ -564,14 +564,14 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     box-shadow: 0 6px 20px rgba(0,0,0,0.3);
 }
 #ai-chat-fab.panel-open {
-    right: 408px;
+    right: 598px;
     display: none;
 }
 #ai-chat-panel {
     position: fixed;
     top: 0;
-    right: -380px;
-    width: 380px;
+    right: -570px;
+    width: 570px;
     height: 100vh;
     background: #fff;
     border-left: 1px solid #dee2e6;
@@ -589,7 +589,7 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     transition: width 0.3s ease;
 }
 #mainBox.ai-open {
-    width: calc(100% - 380px) !important;
+    width: calc(100% - 570px) !important;
 }
 #ai-chat-header {
     display: flex;
@@ -611,33 +611,55 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     background: #f8f9fa;
 }
 .ai-msg {
-    max-width: 90%;
-    padding: 8px 12px;
-    border-radius: 12px;
     font-size: 0.875rem;
     line-height: 1.5;
     word-break: break-word;
 }
-.ai-msg.user { white-space: pre-wrap; }
 .ai-msg.user {
+    white-space: pre-wrap;
     align-self: flex-end;
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    border-bottom-right-radius: 3px;
     background: #0069d9;
     color: #fff;
-    border-bottom-right-radius: 3px;
 }
 .ai-msg.assistant {
-    align-self: flex-start;
-    background: #fff;
-    border: 1px solid #dee2e6;
-    border-bottom-left-radius: 3px;
+    align-self: stretch;
+    width: 100%;
+    padding: 4px 0;
+    background: none;
+    border: none;
+    border-radius: 0;
 }
-.ai-msg.escalated { border-left: 3px solid #dc3545; }
+.ai-msg.escalated { border-left: 3px solid #dc3545; padding-left: 8px; }
 .ai-msg-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
     font-size: 0.72rem;
     color: #6c757d;
     margin-top: 3px;
     align-self: flex-start;
 }
+.ai-escalate-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #dc3545;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+.ai-escalate-btn:hover { background: #b02a37; }
 #ai-chat-footer {
     padding: 10px;
     border-top: 1px solid #dee2e6;
@@ -648,6 +670,98 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     resize: none;
     font-size: 0.875rem;
 }
+#ai-patient-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    margin-bottom: 8px;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+#ai-patient-chip .chip-label {
+    background: #2563eb;
+    color: #fff;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 3px 8px;
+    border-radius: 20px 0 0 20px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+}
+#ai-patient-chip .chip-value {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 3px 10px 3px 7px;
+    border-radius: 0 20px 20px 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+.ai-meta-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 6px 0 2px;
+}
+.ai-meta-callout {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    margin: 6px 0;
+    font-size: 0.82rem;
+}
+.ai-meta-callout-label {
+    background: #374151;
+    color: #f9fafb;
+    padding: 5px 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.63rem;
+    letter-spacing: 0.07em;
+}
+.ai-meta-callout-value {
+    background: #f3f4f6;
+    color: #111827;
+    padding: 8px 12px;
+    line-height: 1.5;
+}
+.ai-meta-chip {
+    display: inline-flex;
+    align-items: stretch;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    line-height: 1.3;
+}
+.ai-meta-chip-label {
+    background: #374151;
+    color: #f9fafb;
+    padding: 3px 8px;
+    border-radius: 20px 0 0 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.63rem;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.ai-meta-chip-value {
+    background: #e5e7eb;
+    color: #111827;
+    padding: 3px 10px 3px 7px;
+    border-radius: 0 20px 20px 0;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+.ai-msg.assistant hr { display: none; }
 .ai-msg.assistant p { margin: 0 0 0.4em; }
 .ai-msg.assistant p:last-child { margin-bottom: 0; }
 .ai-msg.assistant ul, .ai-msg.assistant ol { padding-left: 1.25em; margin: 0.25em 0; }
@@ -663,7 +777,6 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     border-left: 3px solid #6c757d;
     border-radius: 6px;
     background: #f8f9fa;
-    overflow: hidden;
     align-self: flex-start;
     max-width: 95%;
 }
@@ -677,6 +790,10 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     color: #495057;
     font-family: monospace;
     list-style: none;
+    border-radius: 6px;
+}
+details.ai-tool-call[open] summary {
+    border-radius: 6px 6px 0 0;
 }
 .ai-tool-call summary::-webkit-details-marker { display: none; }
 .ai-tool-call summary::before { content: '▶'; font-size: 0.6rem; color: #adb5bd; flex-shrink: 0; }
@@ -713,6 +830,7 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
     </div>
     <div id="ai-chat-messages"></div>
     <div id="ai-chat-footer">
+        <div id="ai-patient-chip" style="display:none;"></div>
         <textarea id="ai-chat-input" class="form-control mb-2" rows="2" placeholder="<?php echo xla('Ask a clinical question...'); ?>"></textarea>
         <button id="ai-chat-send" class="btn btn-primary btn-sm btn-block">
             <i class="fas fa-paper-plane mr-1"></i><?php echo xlt('Send'); ?>
@@ -733,13 +851,29 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
     var input   = document.getElementById('ai-chat-input');
     var send    = document.getElementById('ai-chat-send');
     var messages = document.getElementById('ai-chat-messages');
+    var patientChip = document.getElementById('ai-patient-chip');
 
     var mainBox = document.getElementById('mainBox');
+
+    function updatePatientChip() {
+        try {
+            var pt = app_view_model.application_data.patient();
+            if (pt && pt.pname && pt.pname()) {
+                patientChip.innerHTML = '<span class="chip-label">👤 Patient</span><span class="chip-value">' + pt.pname() + '</span>';
+                patientChip.style.display = 'inline-flex';
+            } else {
+                patientChip.style.display = 'none';
+            }
+        } catch (e) {
+            patientChip.style.display = 'none';
+        }
+    }
 
     function openPanel() {
         panel.classList.add('open');
         mainBox.classList.add('ai-open');
         toggle.classList.add('panel-open');
+        updatePatientChip();
     }
     function closePanel() {
         panel.classList.remove('open');
@@ -751,6 +885,11 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
         panel.classList.contains('open') ? closePanel() : openPanel();
     });
     close.addEventListener('click', closePanel);
+
+    try {
+        app_view_model.application_data.patient.subscribe(updatePatientChip);
+    } catch (e) {}
+
 
     input.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -810,12 +949,83 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
         messages.scrollTop = messages.scrollHeight;
     }
 
+    function styleMetadataChips(container) {
+        var chips = [];
+        container.querySelectorAll('p').forEach(function(p) {
+            var label = null, value = null;
+            var strong = p.firstElementChild;
+
+            if (strong && strong.tagName === 'STRONG') {
+                var strongText = strong.textContent.trim();
+                var rest = '';
+                p.childNodes.forEach(function(n) { if (n !== strong) rest += n.textContent; });
+                rest = rest.trim();
+
+                // "**Label:**  value"  — colon inside the bold
+                if (strongText.endsWith(':') && rest) {
+                    label = strongText.slice(0, -1).trim();
+                    value = rest;
+                }
+                // "**Label**:  value"  — colon outside the bold
+                else if (!strongText.endsWith(':') && rest.startsWith(':') && rest.length > 1) {
+                    label = strongText;
+                    value = rest.slice(1).trim();
+                }
+            }
+
+            // plain "Label: value" with no markup at all
+            if (!label) {
+                var plain = p.textContent.trim();
+                var m = plain.match(/^([A-Z][^:]{2,40}):\s+(.+)$/);
+                if (m) {
+                    label = m[1].trim();
+                    value = m[2].trim();
+                }
+            }
+
+            if (label && value) {
+                var el;
+                if (value.length > 60) {
+                    el = document.createElement('div');
+                    el.className = 'ai-meta-callout';
+                    el.innerHTML =
+                        '<div class="ai-meta-callout-label">' + label + '</div>' +
+                        '<div class="ai-meta-callout-value">' + value + '</div>';
+                } else {
+                    el = document.createElement('span');
+                    el.className = 'ai-meta-chip';
+                    el.innerHTML =
+                        '<span class="ai-meta-chip-label">' + label + '</span>' +
+                        '<span class="ai-meta-chip-value">' + value + '</span>';
+                }
+                chips.push({ original: p, chip: el });
+            }
+        });
+
+        if (chips.length > 0) {
+            var inlineChips = chips.filter(function(c) { return c.chip.classList.contains('ai-meta-chip'); });
+            var callouts = chips.filter(function(c) { return c.chip.classList.contains('ai-meta-callout'); });
+
+            if (inlineChips.length > 0) {
+                var wrap = document.createElement('div');
+                wrap.className = 'ai-meta-chips';
+                inlineChips[0].original.parentNode.insertBefore(wrap, inlineChips[0].original);
+                inlineChips.forEach(function(c) { wrap.appendChild(c.chip); c.original.remove(); });
+            }
+            callouts.forEach(function(c) {
+                c.original.parentNode.insertBefore(c.chip, c.original);
+                c.original.remove();
+            });
+        }
+    }
+
     function appendMessage(text, role, meta) {
         var div = document.createElement('div');
         div.className = 'ai-msg ' + role;
         if (meta && meta.escalated) div.classList.add('escalated');
         if (role === 'assistant') {
             div.innerHTML = DOMPurify.sanitize(marked.parse(text));
+            styleMetadataChips(div);
         } else {
             div.textContent = text;
         }
@@ -823,7 +1033,20 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
         if (meta && meta.confidenceScore !== undefined) {
             var m = document.createElement('div');
             m.className = 'ai-msg-meta';
-            m.textContent = 'Confidence: ' + meta.confidenceScore + '%' + (meta.escalated ? ' ⚠ Review recommended' : '');
+            var metaText = document.createTextNode('Confidence: ' + meta.confidenceScore + '%' + (meta.escalated ? ' ⚠ Review recommended' : ''));
+            m.appendChild(metaText);
+            if (meta.escalated) {
+                var btn = document.createElement('button');
+                btn.className = 'ai-escalate-btn';
+                btn.innerHTML = '🚨 Escalate';
+                btn.addEventListener('click', function() {
+                    var pid = '';
+                    try { pid = app_view_model.application_data.patient().pid(); } catch(e) {}
+                    var url = top.webroot_url + '/interface/main/messages/messages.php?task=addnew&form_active=1' + (pid ? '&pid=' + encodeURIComponent(pid) : '');
+                    top.dlgopen(url, 'ai_escalate', 'modal-lg', 500, '', '<?php echo xla('Escalate for Review'); ?>', { allowDrag: true, allowResize: true });
+                });
+                m.appendChild(btn);
+            }
             messages.appendChild(m);
         }
         messages.scrollTop = messages.scrollHeight;
