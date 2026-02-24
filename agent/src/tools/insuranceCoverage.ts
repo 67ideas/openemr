@@ -27,6 +27,7 @@ export type InsuranceCoverageResult = {
     expirationDate: string;
     copay: string;
     acceptAssignment: string;
+    phone: string | null;
     procedureCoverage?: CoverageDetail | null;
   }>;
   source: "OpenEMR";
@@ -47,6 +48,7 @@ type InsuranceRow = {
   date_end: string;
   copay: string;
   accept_assignment: string;
+  phone: string | null;
 };
 
 type CoverageRow = {
@@ -91,7 +93,7 @@ async function lookupCoverage(planId: string, cptCode: string): Promise<Coverage
 
 export const insuranceCoverageTool = tool({
   description:
-    "Look up a patient's insurance coverage from OpenEMR. Returns primary, secondary, and/or tertiary insurance details including plan name, plan ID, policy number, copay, and deductible. Optionally pass a CPT procedure code to check whether that specific procedure is covered under the patient's plan.",
+    "Look up a patient's insurance coverage from OpenEMR. Returns primary, secondary, and/or tertiary insurance details including plan name, plan ID, policy number, copay, deductible, and the insurance company's member-services phone number. Optionally pass a CPT procedure code to check whether that specific procedure is covered under the patient's plan.",
   inputSchema: z.object({
     patientId: z
       .string()
@@ -120,10 +122,14 @@ export const insuranceCoverageTool = tool({
       const placeholders = typesToFetch.map(() => "?").join(",");
 
       const [rows] = await conn.execute<mysql.RowDataPacket[]>(
-        `SELECT type, provider, plan_name, policy_number, group_number,
-                subscriber_fname, subscriber_lname, subscriber_DOB, subscriber_relationship,
-                \`date\`, date_end, copay, accept_assignment
-         FROM insurance_data WHERE pid = ? AND type IN (${placeholders})`,
+        `SELECT id.type, id.provider, id.plan_name, id.policy_number, id.group_number,
+                id.subscriber_fname, id.subscriber_lname, id.subscriber_DOB, id.subscriber_relationship,
+                id.\`date\`, id.date_end, id.copay, id.accept_assignment,
+                CONCAT_WS('-', pn.area_code, pn.prefix, pn.number) AS phone
+         FROM insurance_data id
+         LEFT JOIN insurance_companies ic ON ic.name = id.provider
+         LEFT JOIN phone_numbers pn ON pn.foreign_id = ic.id AND pn.type = 2
+         WHERE id.pid = ? AND id.type IN (${placeholders})`,
         [patientId, ...typesToFetch],
       );
 
@@ -153,6 +159,7 @@ export const insuranceCoverageTool = tool({
             expirationDate: ins.date_end ?? "",
             copay: ins.copay ?? "",
             acceptAssignment: ins.accept_assignment ?? "",
+            phone: ins.phone ?? null,
             ...(procedureCoverage !== undefined ? { procedureCoverage } : {}),
           };
         }),

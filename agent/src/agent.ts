@@ -19,6 +19,7 @@ import {
   verifyDrugInteractionResult,
 } from "./verification/domainChecks.js";
 import type { DrugInteractionResult } from "./tools/drugInteraction.js";
+import type { InsuranceCoverageResult } from "./tools/insuranceCoverage.js";
 
 
 const CLINICAL_SYSTEM_PROMPT = `You are a clinical decision-support assistant helping healthcare professionals with informational queries.
@@ -43,6 +44,7 @@ Guidelines:
 - Never provide definitive medical advice — always recommend consulting a licensed clinician
 - When asked about insurance or procedure coverage and no patient context is loaded, ask the user for the patient's PID (numeric ID) before calling insuranceCoverageTool — never refuse to look up insurance just because no patient is in context
 - When a CPT code is not explicitly provided but the user asks about a specific procedure, infer the most relevant CPT code and pass it as cptCode to insuranceCoverageTool
+- When coverage is unclear (procedureCoverage is null, coverageStatus is "prior_auth_required", or coverageStatus is "not_covered"), recommend that the user contact the insurer directly. The phone link will be appended automatically — do not add it yourself.
 
 At the end of every response, on its own line, append exactly:
 CONFIDENCE: <number>
@@ -161,7 +163,24 @@ Insurance data is NOT included in this context — always call insuranceCoverage
   const confidenceScore = confidenceMatch ? Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10))) : 50;
   const cleanText = result.text.replace(/\nCONFIDENCE:\s*\d+\s*$/, "").trimEnd();
 
-  const finalText = safetyPrefix ? `${safetyPrefix}${cleanText}` : cleanText;
+  const phoneLinks = result.steps
+    .flatMap((step) => step.toolResults ?? [])
+    .filter((tr) => tr.toolName === "insuranceCoverageTool")
+    .flatMap((tr) => {
+      const output = tr.output as InsuranceCoverageResult;
+      return (output.insurances ?? [])
+        .filter((ins) => ins.phone)
+        .map((ins) => {
+          const digits = ins.phone!.replace(/\D/g, "");
+          return `[Call ${ins.provider} Member Services](tel:${digits})`;
+        });
+    });
+
+  const uniquePhoneLinks = [...new Set(phoneLinks)];
+  const phoneBlock = uniquePhoneLinks.filter((link) => !cleanText.includes(link)).join("\n");
+  const textWithPhones = phoneBlock ? `${cleanText}\n\n${phoneBlock}` : cleanText;
+
+  const finalText = safetyPrefix ? `${safetyPrefix}${textWithPhones}` : textWithPhones;
 
   const toolCalls: ToolCallRecord[] = result.steps.flatMap((step) =>
     (step.toolCalls ?? []).map((tc) => {

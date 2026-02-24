@@ -280,6 +280,14 @@ VALUES
   (1003, UNHEX(REPLACE(UUID(),'-','')), 'UnitedHealth Advantage Plus',   'UHC03',  1, 0),
   (1004, UNHEX(REPLACE(UUID(),'-','')), 'Medicaid State Plan',           'MCAID04', 2, 0);
 
+-- Insurance company member-services phone numbers (type 2 = work/member services)
+INSERT IGNORE INTO phone_numbers (id, country_code, area_code, prefix, number, type, foreign_id)
+VALUES
+  (2001, '1', '800', '262', '4462', 2, 1001),
+  (2002, '1', '800', '872', '3862', 2, 1002),
+  (2003, '1', '866', '801', '4409', 2, 1003),
+  (2004, '1', '800', '541', '2831', 2, 1004);
+
 -- -----------------------------------------------------------------------------
 -- INSURANCE DATA — assign primary insurance to all patients round-robin
 -- Plan IDs correspond to insurance_companies.id above.
