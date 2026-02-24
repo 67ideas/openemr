@@ -1,0 +1,30 @@
+# Dev/test only
+docker/
+tests/
+node_modules/
+vendor/
+ccdaservice/node_modules/
+public/assets/
+public/themes/
+
+# Editor/IDE
+.idea/
+.vscode/
+.vscode-oss/
+nbproject/
+.DS_Store
+
+# Logs and temp
+logs/
+tmp-phpstan/
+coverage/
+
+# Git
+.git/
+.github/
+
+# CI
+ci/
+.pre-commit-config.yaml
+codecov.yml
+cloudbuild.yaml
