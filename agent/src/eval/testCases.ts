@@ -10,6 +10,13 @@ export type TestCase = {
   expectEscalation?: boolean;
   /** Whether the response should include a disclaimer about consulting a clinician */
   expectSafetyDisclaimer?: boolean;
+  /**
+   * Expected confidence range [min, max] (0–100).
+   * Omit when confidence is not meaningful to assert on (e.g. multi-tool queries
+   * where the answer quality is already covered by other scorers).
+   * Use a low ceiling for cases where the agent should be uncertain.
+   */
+  expectedConfidenceRange?: [number, number];
 };
 
 export const TEST_CASES: TestCase[] = [
@@ -57,6 +64,7 @@ export const TEST_CASES: TestCase[] = [
     expectedSources: ["OpenFDA", "RxNorm"],
     expectedKeywords: ["bleeding", "hemorrhage", "warfarin"],
     expectSafetyDisclaimer: true,
+    expectedConfidenceRange: [70, 100], // well-documented interaction, should be confident
   },
   {
     id: "tc-07",
@@ -71,12 +79,14 @@ export const TEST_CASES: TestCase[] = [
     input: "What's the drug info for flibbertigibbet?",
     expectedSources: ["RxNorm"],
     expectedKeywords: ["not found", "no", "unable", "error", "could not"],
+    expectedConfidenceRange: [0, 40], // tool returned nothing, confidence should be low
   },
   {
     id: "tc-09",
     description: "Ambiguous provider search — multiple results",
     input: "Find providers named Smith.",
     expectedSources: ["OpenEMR"],
+    expectedConfidenceRange: [30, 70], // ambiguous results, should hedge
   },
   {
     id: "tc-10",
