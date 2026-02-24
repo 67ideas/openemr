@@ -565,6 +565,7 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
 }
 #ai-chat-fab.panel-open {
     right: 408px;
+    display: none;
 }
 #ai-chat-panel {
     position: fixed;
@@ -585,10 +586,10 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
 }
 #ai-chat-panel.open { right: 0; }
 #mainBox {
-    transition: margin-right 0.3s ease;
+    transition: width 0.3s ease;
 }
 #mainBox.ai-open {
-    margin-right: 380px;
+    width: calc(100% - 380px) !important;
 }
 #ai-chat-header {
     display: flex;
