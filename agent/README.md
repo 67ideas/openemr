@@ -1,6 +1,6 @@
 # OpenEMR Clinical AI Agent
 
-A CLI-based clinical decision-support agent that combines OpenEMR patient data with public medical APIs (OpenFDA, RxNorm, NLM, PubMed) and an LLM to answer clinical queries.
+A clinical decision-support agent that combines OpenEMR patient data with public medical APIs (OpenFDA, RxNorm, NLM, PubMed) and an LLM to answer clinical queries. Can be used as an interactive CLI or as an HTTP server that powers the built-in AI chat panel in the OpenEMR UI.
 
 ## Prerequisites
 
@@ -60,11 +60,31 @@ npm install
 
 ## Running the Agent
 
+### HTTP server (for the OpenEMR UI chat panel)
+
+```bash
+npm run server
+```
+
+Starts an HTTP server on port 3001 (override with `AGENT_PORT` env var). The OpenEMR UI connects to it automatically via the AI Assistant panel in the navbar.
+
+**Endpoint:** `POST http://localhost:3001/chat`
+
+```json
+// Request
+{ "message": "What are the interactions between metformin and lisinopril?", "sessionId": "abc123" }
+
+// Response
+{ "text": "...", "escalated": false, "confidenceScore": 87 }
+```
+
+### Interactive CLI
+
 ```bash
 npm start
 ```
 
-This starts an interactive CLI. Type a clinical query and press Enter.
+Starts an interactive terminal session. Type a clinical query and press Enter.
 
 ```
 OpenEMR Clinical AI Agent

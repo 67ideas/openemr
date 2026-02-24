@@ -485,6 +485,9 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
             // fire off a nav event
             $dispatcher->dispatch(new RenderEvent(), RenderEvent::EVENT_BODY_RENDER_NAV);
             ?>
+            <button id="ai-chat-toggle" class="btn btn-sm btn-secondary ml-2" title="<?php echo xla('AI Assistant'); ?>" style="white-space:nowrap;">
+                <i class="fas fa-robot"></i>
+            </button>
         </nav>
         <div id="attendantData" class="body_title acck" data-bind="template: {name: app_view_model.attendant_template_type, data: application_data}"></div>
         <div class="body_title pt-1" id="tabs_div" data-bind="template: {name: 'tabs-controls', data: application_data}"></div>
@@ -538,6 +541,162 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     }
 
     ?>
+<style>
+#ai-chat-panel {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 380px;
+    height: 100vh;
+    background: #fff;
+    border-left: 1px solid #dee2e6;
+    box-shadow: -4px 0 16px rgba(0,0,0,0.12);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s ease;
+}
+#ai-chat-panel.open { right: 0; }
+#ai-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #343a40;
+    color: #fff;
+    flex-shrink: 0;
+}
+#ai-chat-header span { font-weight: 600; font-size: 0.95rem; }
+#ai-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #f8f9fa;
+}
+.ai-msg {
+    max-width: 90%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.ai-msg.user {
+    align-self: flex-end;
+    background: #0069d9;
+    color: #fff;
+    border-bottom-right-radius: 3px;
+}
+.ai-msg.assistant {
+    align-self: flex-start;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-bottom-left-radius: 3px;
+}
+.ai-msg.escalated { border-left: 3px solid #dc3545; }
+.ai-msg-meta {
+    font-size: 0.72rem;
+    color: #6c757d;
+    margin-top: 3px;
+    align-self: flex-start;
+}
+#ai-chat-footer {
+    padding: 10px;
+    border-top: 1px solid #dee2e6;
+    background: #fff;
+    flex-shrink: 0;
+}
+#ai-chat-input {
+    resize: none;
+    font-size: 0.875rem;
+}
+</style>
+
+<div id="ai-chat-panel">
+    <div id="ai-chat-header">
+        <span><i class="fas fa-robot mr-2"></i><?php echo xlt('AI Assistant'); ?></span>
+        <button id="ai-chat-close" class="btn btn-sm btn-outline-light py-0 px-2">&times;</button>
+    </div>
+    <div id="ai-chat-messages"></div>
+    <div id="ai-chat-footer">
+        <textarea id="ai-chat-input" class="form-control mb-2" rows="2" placeholder="<?php echo xla('Ask a clinical question...'); ?>"></textarea>
+        <button id="ai-chat-send" class="btn btn-primary btn-sm btn-block">
+            <i class="fas fa-paper-plane mr-1"></i><?php echo xlt('Send'); ?>
+        </button>
+    </div>
+</div>
+
+<script>
+(function () {
+    var SESSION_ID = 'ai-' + Date.now();
+    var AGENT_URL = 'http://localhost:3001/chat';
+
+    var panel   = document.getElementById('ai-chat-panel');
+    var toggle  = document.getElementById('ai-chat-toggle');
+    var close   = document.getElementById('ai-chat-close');
+    var input   = document.getElementById('ai-chat-input');
+    var send    = document.getElementById('ai-chat-send');
+    var messages = document.getElementById('ai-chat-messages');
+
+    toggle.addEventListener('click', function () { panel.classList.toggle('open'); });
+    close.addEventListener('click', function () { panel.classList.remove('open'); });
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    });
+    send.addEventListener('click', sendMessage);
+
+    function appendMessage(text, role, meta) {
+        var div = document.createElement('div');
+        div.className = 'ai-msg ' + role;
+        if (meta && meta.escalated) div.classList.add('escalated');
+        div.textContent = text;
+        messages.appendChild(div);
+        if (meta && meta.confidenceScore !== undefined) {
+            var m = document.createElement('div');
+            m.className = 'ai-msg-meta';
+            m.textContent = 'Confidence: ' + meta.confidenceScore + '%' + (meta.escalated ? ' ⚠ Review recommended' : '');
+            messages.appendChild(m);
+        }
+        messages.scrollTop = messages.scrollHeight;
+        return div;
+    }
+
+    function setLoading(on) {
+        send.disabled = on;
+        input.disabled = on;
+        send.innerHTML = on
+            ? '<span class="spinner-border spinner-border-sm"></span>'
+            : '<i class="fas fa-paper-plane mr-1"></i><?php echo xlt('Send'); ?>';
+    }
+
+    function sendMessage() {
+        var text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        appendMessage(text, 'user');
+        setLoading(true);
+
+        fetch(AGENT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text, sessionId: SESSION_ID })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            appendMessage(data.text, 'assistant', { escalated: data.escalated, confidenceScore: data.confidenceScore });
+        })
+        .catch(function () {
+            appendMessage('<?php echo xlt('Could not reach AI assistant. Make sure the agent server is running.'); ?>', 'assistant');
+        })
+        .finally(function () { setLoading(false); });
+    }
+})();
+</script>
 </body>
 
 </html>
