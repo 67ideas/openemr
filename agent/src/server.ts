@@ -10,7 +10,7 @@ app.use(cors({ origin: ["http://localhost:8300", "https://localhost:9300"] }));
 app.use(express.json());
 
 app.post("/chat", async (req, res) => {
-  const { message, sessionId } = req.body;
+  const { message, sessionId, patientContext } = req.body;
 
   if (!message || typeof message !== "string") {
     res.status(400).json({ error: "message is required" });
@@ -19,7 +19,7 @@ app.post("/chat", async (req, res) => {
 
   const sid = sessionId && typeof sessionId === "string" ? sessionId : `session-${Date.now()}`;
 
-  const result = await runAgent(message, sid);
+  const result = await runAgent(message, sid, patientContext ?? null);
   res.json(result);
 });
 

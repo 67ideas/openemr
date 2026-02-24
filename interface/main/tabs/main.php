@@ -656,6 +656,51 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
 .ai-msg.assistant h1, .ai-msg.assistant h2, .ai-msg.assistant h3 { font-size: 0.95rem; font-weight: 600; margin: 0.5em 0 0.25em; }
 .ai-msg.assistant table { border-collapse: collapse; font-size: 0.82rem; margin: 0.4em 0; }
 .ai-msg.assistant th, .ai-msg.assistant td { border: 1px solid #dee2e6; padding: 3px 8px; }
+.ai-tool-call {
+    font-size: 0.78rem;
+    border: 1px solid #dee2e6;
+    border-left: 3px solid #6c757d;
+    border-radius: 6px;
+    background: #f8f9fa;
+    overflow: hidden;
+    align-self: flex-start;
+    max-width: 95%;
+}
+.ai-tool-call summary {
+    padding: 5px 10px;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #495057;
+    font-family: monospace;
+    list-style: none;
+}
+.ai-tool-call summary::-webkit-details-marker { display: none; }
+.ai-tool-call summary::before { content: '▶'; font-size: 0.6rem; color: #adb5bd; flex-shrink: 0; }
+details.ai-tool-call[open] summary::before { content: '▼'; }
+.ai-tool-call-body {
+    padding: 6px 10px;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.ai-tool-call-section { font-size: 0.72rem; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.ai-tool-call-pre {
+    margin: 0;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 4px 7px;
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 140px;
+    overflow-y: auto;
+    color: #212529;
+}
 </style>
 
 <button id="ai-chat-fab" title="<?php echo xla('AI Assistant'); ?>">✨</button>
@@ -711,6 +756,59 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     });
     send.addEventListener('click', sendMessage);
 
+    var TOOL_ICONS = {
+        drugInteractionTool: '💊',
+        icd10LookupTool: '🏷️',
+        medicationInfoTool: '💉',
+        symptomLookupTool: '🔍',
+        providerSearchTool: '👤',
+        pubmedSearchTool: '📄'
+    };
+
+    function appendToolCalls(toolCalls) {
+        if (!toolCalls || !toolCalls.length) return;
+        toolCalls.forEach(function(tc) {
+            var details = document.createElement('details');
+            details.className = 'ai-tool-call';
+
+            var summary = document.createElement('summary');
+            var icon = TOOL_ICONS[tc.name] || '🔧';
+            summary.textContent = icon + ' ' + tc.name;
+            details.appendChild(summary);
+
+            var body = document.createElement('div');
+            body.className = 'ai-tool-call-body';
+
+            var inLabel = document.createElement('div');
+            inLabel.className = 'ai-tool-call-section';
+            inLabel.textContent = 'Input';
+            body.appendChild(inLabel);
+
+            var inPre = document.createElement('pre');
+            inPre.className = 'ai-tool-call-pre';
+            inPre.textContent = JSON.stringify(tc.input, null, 2);
+            body.appendChild(inPre);
+
+            if (tc.output !== null && tc.output !== undefined) {
+                var outLabel = document.createElement('div');
+                outLabel.className = 'ai-tool-call-section';
+                outLabel.textContent = 'Output';
+                body.appendChild(outLabel);
+
+                var outPre = document.createElement('pre');
+                outPre.className = 'ai-tool-call-pre';
+                outPre.textContent = typeof tc.output === 'string'
+                    ? tc.output
+                    : JSON.stringify(tc.output, null, 2);
+                body.appendChild(outPre);
+            }
+
+            details.appendChild(body);
+            messages.appendChild(details);
+        });
+        messages.scrollTop = messages.scrollHeight;
+    }
+
     function appendMessage(text, role, meta) {
         var div = document.createElement('div');
         div.className = 'ai-msg ' + role;
@@ -739,6 +837,25 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
             : '<i class="fas fa-paper-plane mr-1"></i><?php echo xlt('Send'); ?>';
     }
 
+    function getPatientContext() {
+        try {
+            var pt = app_view_model.application_data.patient();
+            if (!pt || !pt.pid()) return Promise.resolve(null);
+            var base = { pid: pt.pid(), name: pt.pname(), pubpid: pt.pubpid(), dob: pt.str_dob() };
+            var url = '<?php echo $webroot; ?>/interface/main/tabs/ai_patient_context.php'
+                + '?pid=' + encodeURIComponent(pt.pid())
+                + '&csrf_token=' + encodeURIComponent('<?php echo attr(CsrfUtils::collectCsrfToken()); ?>');
+            return fetch(url)
+                .then(function(r) { return r.ok ? r.json() : {}; })
+                .then(function(data) {
+                    base.medications = data.medications || [];
+                    base.problems = data.problems || [];
+                    return base;
+                })
+                .catch(function() { return base; });
+        } catch (e) { return Promise.resolve(null); }
+    }
+
     function sendMessage() {
         var text = input.value.trim();
         if (!text) return;
@@ -746,19 +863,22 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
         appendMessage(text, 'user');
         setLoading(true);
 
-        fetch(AGENT_URL, {
+        getPatientContext().then(function(patientContext) {
+        return fetch(AGENT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text, sessionId: SESSION_ID })
+            body: JSON.stringify({ message: text, sessionId: SESSION_ID, patientContext: patientContext })
         })
         .then(function (r) { return r.json(); })
         .then(function (data) {
+            appendToolCalls(data.toolCalls);
             appendMessage(data.text, 'assistant', { escalated: data.escalated, confidenceScore: data.confidenceScore });
         })
         .catch(function () {
             appendMessage('<?php echo xlt('Could not reach AI assistant. Make sure the agent server is running.'); ?>', 'assistant');
         })
         .finally(function () { setLoading(false); });
+        }); // end getPatientContext().then
     }
 })();
 </script>

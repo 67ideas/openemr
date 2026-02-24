@@ -25,25 +25,18 @@ type OpenEMRCondition = {
 
 export const symptomLookupTool = tool({
   description:
-    "Look up medical problems, conditions, and symptoms recorded in OpenEMR. When a patientUuid is provided, returns that patient's active problem list. Without a patientUuid, searches across all medical problems by title or ICD-10 code.",
+    "Search medical problems and conditions recorded in OpenEMR by title or ICD-10 code across all patients. Use this to search for a specific condition by name, not to list a specific patient's problems (those are already in the patient context).",
   inputSchema: z.object({
     query: z
       .string()
-      .optional()
       .describe("Condition name or ICD-10 code to search for (e.g. 'hypertension' or 'I10')"),
-    patientUuid: z
-      .string()
-      .optional()
-      .describe("OpenEMR patient UUID to retrieve that patient's specific problem list"),
   }),
-  execute: async ({ query, patientUuid }): Promise<SymptomLookupResult> => {
+  execute: async ({ query }): Promise<SymptomLookupResult> => {
     try {
       const baseUrl = process.env.OPENEMR_BASE_URL ?? "http://localhost:8300";
       const token = await getOpenEMRToken();
 
-      const urlBase = patientUuid
-        ? `${baseUrl}/apis/default/api/patient/${encodeURIComponent(patientUuid)}/medical_problem`
-        : `${baseUrl}/apis/default/api/medical_problem`;
+      const urlBase = `${baseUrl}/apis/default/api/medical_problem`;
 
       const params = new URLSearchParams();
       if (query) params.set("title", query);
