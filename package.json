@@ -4,6 +4,7 @@
   "description": "UI toolkit, theme and component library for OpenEMR",
   "main": "index.js",
   "scripts": {
+    "dev:all": "docker compose -f docker/development-easy/docker-compose.yml up --detach --wait && npm run server --prefix agent",
     "postinstall": "napa && gulp -i",
     "build": "gulp -b",
     "dev-build": "npm run gulp-build",
