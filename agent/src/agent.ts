@@ -6,6 +6,7 @@ import { icd10LookupTool } from "./tools/icd10Lookup.js";
 import { medicationInfoTool } from "./tools/medicationInfo.js";
 import { symptomLookupTool } from "./tools/symptomLookup.js";
 import { providerSearchTool } from "./tools/providerSearch.js";
+import { pubmedSearchTool } from "./tools/pubmedSearch.js";
 import {
   buildSafetyPrefix,
   verifyDrugInteractionResult,
@@ -20,6 +21,7 @@ You have access to the following tools:
 - medicationInfoTool: Get RxNorm drug class and dosage form information for a medication.
 - symptomLookupTool: Search medical problems and conditions recorded in OpenEMR. Accepts an optional patientUuid to retrieve a specific patient's problem list, or a query string to search across all conditions.
 - providerSearchTool: Search for healthcare providers (practitioners) in OpenEMR by name, specialty, or NPI number.
+- pubmedSearchTool: Search PubMed biomedical literature. Supports full PubMed query syntax with field tags (MeSH, title/abstract, publication type, date ranges). Use for evidence-based research, finding clinical studies, or literature on a diagnosis or treatment.
 
 Guidelines:
 - Always use tools to retrieve factual clinical data rather than relying on your own memory
@@ -56,6 +58,7 @@ export async function runAgent(
       medicationInfoTool,
       symptomLookupTool,
       providerSearchTool,
+      pubmedSearchTool,
     },
     stopWhen: stepCountIs(5),
     messages: [
