@@ -32,7 +32,7 @@ export async function getOpenEMRToken(): Promise<string> {
     username,
     password,
     user_role: "users",
-    scope: "openid api:oemr api:fhir user/patient.read user/practitioner.read user/Patient.read user/Practitioner.read user/MedicationRequest.read user/Condition.read user/appointment.read",
+    scope: "openid api:oemr api:fhir user/patient.read user/practitioner.read user/Patient.read user/Practitioner.read user/MedicationRequest.read user/Condition.read user/appointment.read user/insurance.crus",
   };
   if (clientSecret) paramMap.client_secret = clientSecret;
   const params = new URLSearchParams(paramMap);

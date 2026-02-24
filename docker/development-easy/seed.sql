@@ -267,3 +267,143 @@ FROM (
   SELECT 'dr.rodriguez','2026-03-02','14:00:00','14:30:00',1800,5,15,'Follow-up'
 ) AS t
 WHERE (SELECT MIN(id) FROM users WHERE username = t.uname) IS NOT NULL;
+
+-- -----------------------------------------------------------------------------
+-- INSURANCE COMPANIES (4 plans with distinct plan IDs)
+-- Idempotent: keyed on name.
+-- -----------------------------------------------------------------------------
+
+INSERT IGNORE INTO insurance_companies (id, uuid, name, cms_id, ins_type_code, inactive)
+VALUES
+  (1001, UNHEX(REPLACE(UUID(),'-','')), 'BlueCross BlueShield Premier',  'BCBS01', 1, 0),
+  (1002, UNHEX(REPLACE(UUID(),'-','')), 'Aetna HealthChoice',            'AETNA02', 1, 0),
+  (1003, UNHEX(REPLACE(UUID(),'-','')), 'UnitedHealth Advantage Plus',   'UHC03',  1, 0),
+  (1004, UNHEX(REPLACE(UUID(),'-','')), 'Medicaid State Plan',           'MCAID04', 2, 0);
+
+-- -----------------------------------------------------------------------------
+-- INSURANCE DATA — assign primary insurance to all patients round-robin
+-- Plan IDs correspond to insurance_companies.id above.
+-- Idempotent: DELETE scoped to these pids first.
+-- -----------------------------------------------------------------------------
+
+DELETE FROM insurance_data WHERE pid IN (SELECT pid FROM patient_data);
+
+INSERT INTO insurance_data
+  (uuid, type, provider, plan_name, policy_number, group_number,
+   subscriber_lname, subscriber_fname, subscriber_relationship,
+   subscriber_DOB, copay, date, date_end, pid, accept_assignment, policy_type)
+SELECT
+  UNHEX(REPLACE(UUID(),'-','')),
+  'primary',
+  CASE ((pd.pid - 1) % 4)
+    WHEN 0 THEN 'BlueCross BlueShield Premier'
+    WHEN 1 THEN 'Aetna HealthChoice'
+    WHEN 2 THEN 'UnitedHealth Advantage Plus'
+    ELSE        'Medicaid State Plan'
+  END,
+  CASE ((pd.pid - 1) % 4)
+    WHEN 0 THEN 'BCBS-PPO-PLAN-BCBS01'
+    WHEN 1 THEN 'AETNA-HMO-PLAN-AETNA02'
+    WHEN 2 THEN 'UHC-EPO-PLAN-UHC03'
+    ELSE        'MCAID-FFS-PLAN-MCAID04'
+  END,
+  CONCAT('POL-', LPAD(pd.pid, 6, '0')),
+  CASE ((pd.pid - 1) % 4)
+    WHEN 0 THEN 'GRP-BCBS-001'
+    WHEN 1 THEN 'GRP-AETNA-002'
+    WHEN 2 THEN 'GRP-UHC-003'
+    ELSE        'GRP-MCAID-004'
+  END,
+  pd.lname, pd.fname,
+  'self',
+  pd.DOB,
+  CASE ((pd.pid - 1) % 4)
+    WHEN 0 THEN '25.00'
+    WHEN 1 THEN '30.00'
+    WHEN 2 THEN '20.00'
+    ELSE        '0.00'
+  END,
+  '2025-01-01', '2025-12-31',
+  pd.pid,
+  'TRUE', 'normal'
+FROM patient_data pd;
+
+-- -----------------------------------------------------------------------------
+-- INSURANCE PLAN COVERAGE — maps plan_name to covered CPT codes
+-- Custom table; created idempotently.
+-- coverage_status: 'covered', 'not_covered', 'prior_auth_required'
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS insurance_plan_coverage (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  plan_id       VARCHAR(50)  NOT NULL COMMENT 'Matches insurance_data.plan_name',
+  cpt_code      VARCHAR(10)  NOT NULL,
+  description   VARCHAR(255) NOT NULL,
+  coverage_status ENUM('covered','not_covered','prior_auth_required') NOT NULL DEFAULT 'covered',
+  requires_referral TINYINT(1) NOT NULL DEFAULT 0,
+  copay_override  DECIMAL(8,2) NULL COMMENT 'NULL = use plan default copay',
+  notes         VARCHAR(255) NULL,
+  UNIQUE KEY uq_plan_cpt (plan_id, cpt_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Clear and re-seed coverage rows
+DELETE FROM insurance_plan_coverage;
+
+INSERT INTO insurance_plan_coverage
+  (plan_id, cpt_code, description, coverage_status, requires_referral, copay_override, notes)
+VALUES
+  -- BlueCross BlueShield Premier (BCBS01)
+  ('BCBS-PPO-PLAN-BCBS01', '99213', 'Office visit, established patient, low complexity',      'covered',              0, NULL,   NULL),
+  ('BCBS-PPO-PLAN-BCBS01', '99214', 'Office visit, established patient, moderate complexity', 'covered',              0, NULL,   NULL),
+  ('BCBS-PPO-PLAN-BCBS01', '99203', 'Office visit, new patient, low complexity',              'covered',              0, NULL,   NULL),
+  ('BCBS-PPO-PLAN-BCBS01', '93000', 'Electrocardiogram (ECG)',                                'covered',              0, NULL,   NULL),
+  ('BCBS-PPO-PLAN-BCBS01', '71046', 'Chest X-ray, 2 views',                                  'covered',              0, NULL,   NULL),
+  ('BCBS-PPO-PLAN-BCBS01', '80053', 'Comprehensive metabolic panel',                          'covered',              0, NULL,   NULL),
+  ('BCBS-PPO-PLAN-BCBS01', '85025', 'Complete blood count (CBC)',                             'covered',              0, NULL,   NULL),
+  ('BCBS-PPO-PLAN-BCBS01', '27447', 'Total knee replacement',                                 'prior_auth_required',  1, NULL,   'Prior auth required; submit Form PA-200'),
+  ('BCBS-PPO-PLAN-BCBS01', '43239', 'Upper GI endoscopy with biopsy',                         'prior_auth_required',  1, NULL,   'Specialist referral required'),
+  ('BCBS-PPO-PLAN-BCBS01', '90837', 'Psychotherapy, 60 min',                                  'covered',              1, 40.00,  'Referral from PCP required'),
+  ('BCBS-PPO-PLAN-BCBS01', '00400', 'Anesthesia, superficial procedures',                     'covered',              0, NULL,   NULL),
+  ('BCBS-PPO-PLAN-BCBS01', '99999', 'Experimental brain transplant',                          'not_covered',          0, NULL,   'Procedure is experimental and not a covered benefit'),
+
+  -- Aetna HealthChoice (AETNA02)
+  ('AETNA-HMO-PLAN-AETNA02', '99213', 'Office visit, established patient, low complexity',      'covered',              0, NULL,   NULL),
+  ('AETNA-HMO-PLAN-AETNA02', '99214', 'Office visit, established patient, moderate complexity', 'covered',              0, NULL,   NULL),
+  ('AETNA-HMO-PLAN-AETNA02', '99203', 'Office visit, new patient, low complexity',              'covered',              1, NULL,   'PCP referral required for specialist'),
+  ('AETNA-HMO-PLAN-AETNA02', '93000', 'Electrocardiogram (ECG)',                                'covered',              0, NULL,   NULL),
+  ('AETNA-HMO-PLAN-AETNA02', '71046', 'Chest X-ray, 2 views',                                  'covered',              0, NULL,   NULL),
+  ('AETNA-HMO-PLAN-AETNA02', '80053', 'Comprehensive metabolic panel',                          'covered',              0, NULL,   NULL),
+  ('AETNA-HMO-PLAN-AETNA02', '85025', 'Complete blood count (CBC)',                             'covered',              0, NULL,   NULL),
+  ('AETNA-HMO-PLAN-AETNA02', '27447', 'Total knee replacement',                                 'prior_auth_required',  1, NULL,   'Pre-certification required; call 1-800-AETNA-PA'),
+  ('AETNA-HMO-PLAN-AETNA02', '43239', 'Upper GI endoscopy with biopsy',                         'covered',              1, NULL,   'Referral required'),
+  ('AETNA-HMO-PLAN-AETNA02', '90837', 'Psychotherapy, 60 min',                                  'covered',              1, 50.00,  'Mental health referral required'),
+  ('AETNA-HMO-PLAN-AETNA02', '00400', 'Anesthesia, superficial procedures',                     'covered',              0, NULL,   NULL),
+  ('AETNA-HMO-PLAN-AETNA02', '99999', 'Experimental brain transplant',                          'not_covered',          0, NULL,   'Not a recognized covered benefit'),
+
+  -- UnitedHealth Advantage Plus (UHC03)
+  ('UHC-EPO-PLAN-UHC03', '99213', 'Office visit, established patient, low complexity',      'covered',              0, NULL,   NULL),
+  ('UHC-EPO-PLAN-UHC03', '99214', 'Office visit, established patient, moderate complexity', 'covered',              0, NULL,   NULL),
+  ('UHC-EPO-PLAN-UHC03', '99203', 'Office visit, new patient, low complexity',              'covered',              0, NULL,   NULL),
+  ('UHC-EPO-PLAN-UHC03', '93000', 'Electrocardiogram (ECG)',                                'covered',              0, NULL,   NULL),
+  ('UHC-EPO-PLAN-UHC03', '71046', 'Chest X-ray, 2 views',                                  'covered',              0, NULL,   NULL),
+  ('UHC-EPO-PLAN-UHC03', '80053', 'Comprehensive metabolic panel',                          'covered',              0, NULL,   NULL),
+  ('UHC-EPO-PLAN-UHC03', '85025', 'Complete blood count (CBC)',                             'covered',              0, NULL,   NULL),
+  ('UHC-EPO-PLAN-UHC03', '27447', 'Total knee replacement',                                 'covered',              1, NULL,   'In-network provider required'),
+  ('UHC-EPO-PLAN-UHC03', '43239', 'Upper GI endoscopy with biopsy',                         'prior_auth_required',  0, NULL,   'Online prior auth at myuhc.com'),
+  ('UHC-EPO-PLAN-UHC03', '90837', 'Psychotherapy, 60 min',                                  'covered',              0, 35.00,  NULL),
+  ('UHC-EPO-PLAN-UHC03', '00400', 'Anesthesia, superficial procedures',                     'covered',              0, NULL,   NULL),
+  ('UHC-EPO-PLAN-UHC03', '99999', 'Experimental brain transplant',                          'not_covered',          0, NULL,   'Experimental procedures excluded per plan terms'),
+
+  -- Medicaid State Plan (MCAID04)
+  ('MCAID-FFS-PLAN-MCAID04', '99213', 'Office visit, established patient, low complexity',      'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '99214', 'Office visit, established patient, moderate complexity', 'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '99203', 'Office visit, new patient, low complexity',              'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '93000', 'Electrocardiogram (ECG)',                                'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '71046', 'Chest X-ray, 2 views',                                  'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '80053', 'Comprehensive metabolic panel',                          'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '85025', 'Complete blood count (CBC)',                             'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '27447', 'Total knee replacement',                                 'prior_auth_required',  0, 0.00,  'Prior authorization required via state Medicaid portal'),
+  ('MCAID-FFS-PLAN-MCAID04', '43239', 'Upper GI endoscopy with biopsy',                         'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '90837', 'Psychotherapy, 60 min',                                  'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '00400', 'Anesthesia, superficial procedures',                     'covered',              0, 0.00,  NULL),
+  ('MCAID-FFS-PLAN-MCAID04', '99999', 'Experimental brain transplant',                          'not_covered',          0, NULL,  'Experimental; not covered under state Medicaid benefit');

@@ -13,6 +13,7 @@ import { symptomLookupTool } from "./tools/symptomLookup.js";
 import { providerSearchTool } from "./tools/providerSearch.js";
 import { pubmedSearchTool } from "./tools/pubmedSearch.js";
 import { appointmentAvailabilityTool } from "./tools/appointmentAvailability.js";
+import { insuranceCoverageTool } from "./tools/insuranceCoverage.js";
 import {
   buildSafetyPrefix,
   verifyDrugInteractionResult,
@@ -30,6 +31,7 @@ You have access to the following tools:
 - providerSearchTool: Search for healthcare providers (practitioners) in OpenEMR by name, specialty, or NPI number.
 - pubmedSearchTool: Search PubMed biomedical literature. Supports full PubMed query syntax with field tags (MeSH, title/abstract, publication type, date ranges). Use for evidence-based research, finding clinical studies, or literature on a diagnosis or treatment.
 - appointmentAvailabilityTool: Check available and booked appointment slots for a provider in OpenEMR. Accepts provider name, specialty, a specific date, or a date range (YYYY-MM-DD). Returns 30-minute slots within 09:00–17:00 working hours. Each available slot has a bookingLinks entry — always render available slots as markdown links using those URLs, e.g. [09:00](http://...).
+- insuranceCoverageTool: Look up a patient’s insurance coverage in OpenEMR by patient PID. Returns primary, secondary, and/or tertiary insurance details including plan name, plan ID, policy number, copay, and deductible. Accepts an optional cptCode parameter to check whether a specific CPT procedure code is covered under the patient’s plan (returns coverage status: covered, not_covered, or prior_auth_required, plus any referral or notes).
 
 Guidelines:
 - Always use tools to retrieve factual clinical data rather than relying on your own memory
@@ -39,6 +41,8 @@ Guidelines:
 - If a tool returns an error, acknowledge it gracefully and explain what information could not be retrieved
 - This system uses synthetic patient data for development purposes only
 - Never provide definitive medical advice — always recommend consulting a licensed clinician
+- When asked about insurance or procedure coverage and no patient context is loaded, ask the user for the patient's PID (numeric ID) before calling insuranceCoverageTool — never refuse to look up insurance just because no patient is in context
+- When a CPT code is not explicitly provided but the user asks about a specific procedure, infer the most relevant CPT code and pass it as cptCode to insuranceCoverageTool
 
 At the end of every response, on its own line, append exactly:
 CONFIDENCE: <number>
@@ -106,7 +110,8 @@ async function _runAgent(
 - Active medications: ${meds}
 - Active problems: ${probs}
 
-Use this context to answer questions about the patient directly. When calling tools that accept a patientId or patientPid parameter, use PID ${patientContext.pid}. Do not ask the user for the patient ID.`;
+Use this context to answer questions about the patient directly. When calling tools that accept a patientId or patientPid parameter, use PID ${patientContext.pid}. Do not ask the user for the patient ID.
+Insurance data is NOT included in this context — always call insuranceCoverageTool with patientId "${patientContext.pid}" to answer any questions about the patient's insurance, plan, coverage, or procedure eligibility.`;
   }
 
   const result = await generateText({
@@ -124,6 +129,7 @@ Use this context to answer questions about the patient directly. When calling to
       providerSearchTool,
       pubmedSearchTool,
       appointmentAvailabilityTool,
+      insuranceCoverageTool,
     },
     stopWhen: stepCountIs(5),
     messages: [
