@@ -1,6 +1,6 @@
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "IMAGE"
+image = "ghcr.io/67ideas/openemr:latest"
 
 [deploy]
 healthcheckPath = "/meta/health/readyz"
