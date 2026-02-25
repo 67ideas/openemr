@@ -15,4 +15,7 @@ RUN cd /openemr && npx napa && npx gulp -i && npm run build
 # The flex image's startup rsync includes /couchdb/data; create it so rsync doesn't error.
 RUN mkdir -p /couchdb/data
 
+ENV PHP_ERRORS_STDERR=1 \
+    APACHE_LOG_LEVEL=info
+
 EXPOSE 80

@@ -3,7 +3,7 @@ builder = "IMAGE"
 image = "ghcr.io/67ideas/openemr:latest"
 
 [deploy]
-healthcheckPath = "/"
+healthcheckPath = "/interface/login/login.php"
 healthcheckTimeout = 600
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3

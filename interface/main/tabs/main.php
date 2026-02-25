@@ -847,7 +847,7 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
 <script>
 (function () {
     var SESSION_ID = 'ai-' + Date.now();
-    var AGENT_URL = 'http://localhost:3001/chat';
+    var AGENT_URL = '<?php echo $GLOBALS['webroot']; ?>/interface/main/tabs/ai_chat_proxy.php';
 
     var panel   = document.getElementById('ai-chat-panel');
     var toggle  = document.getElementById('ai-chat-fab');
