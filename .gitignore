@@ -4,6 +4,7 @@
 # environment vars
 .env
 .env.local
+.oauth-client-prod.json
 
 # vendor and assets
 node_modules

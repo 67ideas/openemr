@@ -7,3 +7,27 @@ healthcheckPath = "/meta/health/readyz"
 healthcheckTimeout = 600
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
+
+# ---------------------------------------------------------------------------
+# Required Railway environment variables for the OpenEMR service.
+# Set these in the Railway dashboard (Variables tab) or via Railway CLI:
+#   railway variables set KEY=VALUE --service openemr
+#
+# Database (provided automatically if using Railway's MySQL plugin):
+#   MYSQL_HOST        = <internal hostname of Railway MySQL service>
+#   MYSQL_ROOT_PASS   = <MySQL root password>
+#   MYSQL_USER        = openemr
+#   MYSQL_PASS        = <openemr DB user password>
+#
+# Admin credentials:
+#   OE_USER           = admin
+#   OE_PASS           = <strong password>
+#
+# API / OAuth2 settings — must match local dev docker-compose.yml values:
+#   OPENEMR_SETTING_site_addr_oath         = https://<prod-domain>
+#   OPENEMR_SETTING_oauth_password_grant   = 3
+#   OPENEMR_SETTING_rest_api               = 1
+#   OPENEMR_SETTING_rest_fhir_api          = 1
+#   OPENEMR_SETTING_rest_portal_api        = 1
+#   OPENEMR_SETTING_rest_system_scopes_api = 1
+# ---------------------------------------------------------------------------
