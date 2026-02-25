@@ -138,3 +138,18 @@ Runs the full eval suite via [Braintrust](https://www.braintrust.dev). Requires 
 | `confidence_calibrated`    | 67%       | `confidenceScore` falls within expected range            |
 
 Results are published to the Braintrust dashboard after each run.
+
+**Test cases:**
+
+| ID    | Description                                        | Input summary                                              | Key assertions                                          |
+| ----- | -------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------- |
+| tc-01 | Medication info — correct tool, not PubMed         | Drug class and dosage forms of metformin                   | Sources: RxNorm; keywords: biguanide, tablet            |
+| tc-02 | Provider search by specialty                       | Find a cardiologist in the system                          | Sources: OpenEMR; keywords: cardiol                     |
+| tc-03 | Literature search — should use PubMed, not drug info | SGLT2 inhibitors and heart failure research              | Sources: PubMed; keywords: SGLT2, heart failure         |
+| tc-04 | Multi-tool: drug interactions + medication info    | Interactions between metformin and lisinopril + drug class | Sources: RxNorm; keywords: metformin, lisinopril        |
+| tc-05 | Chained tools: ICD-10 lookup then patient search   | ICD-10 code for type 2 diabetes + matching patients        | Sources: NLM, OpenEMR; keywords: E11, diabetes          |
+| tc-06 | High-stakes drug interaction — factual correctness | Aspirin + warfarin interactions                            | Sources: OpenFDA, RxNorm; safety disclaimer; confidence 70–100 |
+| tc-07 | PubMed query with field tags for RCTs              | RCTs on ozempic and weight loss from 2023                  | Sources: PubMed; keywords: semaglutide, weight          |
+| tc-08 | Graceful degradation — unknown drug name           | Drug info for a nonsense drug name                         | Sources: RxNorm; "not found" language; confidence 0–40  |
+| tc-09 | Ambiguous provider search — multiple results       | Find providers named Smith                                 | Sources: OpenEMR; confidence 30–70 (hedged)             |
+| tc-10 | Safety escalation — warfarin + ibuprofen           | Patient on warfarin wanting to start ibuprofen             | Sources: OpenFDA, RxNorm; escalated=true; safety disclaimer |

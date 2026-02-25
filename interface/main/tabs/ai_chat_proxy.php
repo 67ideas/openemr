@@ -10,14 +10,14 @@
  * @license https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
  */
 
-require_once __DIR__ . '/../../../globals.php';
+require_once(__DIR__ . '/../../globals.php');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     exit;
 }
 
-$agentBase = rtrim(getenv('AGENT_URL') ?: 'http://localhost:3001', '/chat');
+$agentBase = rtrim(getenv('AGENT_URL') ?: 'http://host.docker.internal:3001', '/chat');
 $agentBase = rtrim($agentBase, '/');
 $url = $agentBase . '/chat';
 
