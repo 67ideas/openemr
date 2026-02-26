@@ -10,8 +10,8 @@ function containsAny(text: string, terms: string[]): boolean {
   return terms.some((t) => lower.includes(t.toLowerCase()));
 }
 
-beforeEach(() => {
-  clearSession(SESSION);
+beforeEach(async () => {
+  await clearSession(SESSION);
 });
 
 describe("OpenEMR AI Agent Evaluation", () => {

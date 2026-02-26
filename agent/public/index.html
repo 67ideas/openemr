@@ -10,43 +10,169 @@
     #app { background: #fff; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.1); width: 100%; max-width: 680px; height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
     header { background: #1a6ea8; color: #fff; padding: 16px 20px; font-size: 1rem; font-weight: 600; }
     #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-    .msg { max-width: 80%; padding: 10px 14px; border-radius: 10px; line-height: 1.5; font-size: .9rem; white-space: pre-wrap; word-break: break-word; }
-    .msg.user { align-self: flex-end; background: #1a6ea8; color: #fff; border-bottom-right-radius: 2px; }
+    .msg { max-width: 80%; padding: 10px 14px; border-radius: 10px; line-height: 1.5; font-size: .9rem; word-break: break-word; }
+    .msg.user { align-self: flex-end; background: #1a6ea8; color: #fff; border-bottom-right-radius: 2px; white-space: pre-wrap; }
     .msg.agent { align-self: flex-start; background: #eef2f7; color: #222; border-bottom-left-radius: 2px; }
-    .msg.error { align-self: flex-start; background: #fde8e8; color: #b00; }
+    .msg.agent p { margin-bottom: 0.5em; }
+    .msg.agent p:last-child { margin-bottom: 0; }
+    .msg.agent a { color: #1a6ea8; }
+    .msg.agent ul, .msg.agent ol { padding-left: 1.4em; margin-bottom: 0.5em; }
+    .msg.agent code { background: #dde4ee; padding: 1px 4px; border-radius: 3px; font-size: .85em; }
+    .msg.agent pre { background: #dde4ee; padding: 8px; border-radius: 6px; overflow-x: auto; margin-bottom: 0.5em; }
+    .msg.error { align-self: flex-start; background: #fde8e8; color: #b00; white-space: pre-wrap; }
+    .escalation-banner { align-self: stretch; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 10px 14px; font-size: .875rem; color: #856404; }
+    .escalation-banner a { color: #856404; font-weight: 600; }
+    .feedback-row { display: flex; gap: 8px; padding: 2px 0 0 4px; }
+    .feedback-btn { background: none; border: 1px solid #d1d5db; border-radius: 6px; padding: 2px 8px; font-size: .8rem; cursor: pointer; color: #666; line-height: 1.6; }
+    .feedback-btn:hover:not(:disabled) { background: #eef2f7; }
+    .feedback-btn:disabled { opacity: .5; cursor: default; }
+    .feedback-thanks { font-size: .75rem; color: #888; align-self: center; }
     #form { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #e5e7eb; }
     #input { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: .9rem; outline: none; resize: none; height: 42px; }
     #input:focus { border-color: #1a6ea8; }
-    button { padding: 10px 18px; background: #1a6ea8; color: #fff; border: none; border-radius: 8px; font-size: .9rem; cursor: pointer; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
+    button[type=submit] { padding: 10px 18px; background: #1a6ea8; color: #fff; border: none; border-radius: 8px; font-size: .9rem; cursor: pointer; }
+    button[type=submit]:disabled { opacity: .5; cursor: not-allowed; }
+    #auth-overlay { position: absolute; inset: 0; background: rgba(244,246,249,.97); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border-radius: 12px; }
+    #auth-overlay p { color: #b00; font-weight: 600; font-size: 1rem; }
+    #auth-overlay small { color: #666; font-size: .85rem; }
   </style>
 </head>
 <body>
-  <div id="app">
+  <div id="app" style="position:relative">
     <header>OpenEMR AI Agent</header>
     <div id="messages"></div>
     <form id="form">
       <textarea id="input" placeholder="Ask a clinical question…" rows="1"></textarea>
       <button type="submit" id="send">Send</button>
     </form>
+    <div id="auth-overlay" style="display:none">
+      <p>Not authorized</p>
+      <small>Access this page from within OpenEMR, or provide a valid token parameter.</small>
+    </div>
   </div>
 
   <script>
+    // ── Auth token ──────────────────────────────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get('token');
+    if (tokenFromUrl) sessionStorage.setItem('agent_token', tokenFromUrl);
+    const authToken = sessionStorage.getItem('agent_token');
+
+    // If the server has AGENT_API_KEY set, we need a token.
+    // We'll discover this on the first failed request; for now show UI normally
+    // but reveal the overlay if we get a 401.
+    function showAuthOverlay() {
+      document.getElementById('auth-overlay').style.display = 'flex';
+      document.getElementById('form').style.display = 'none';
+    }
+
+    function authHeaders() {
+      const h = { 'Content-Type': 'application/json' };
+      if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+      return h;
+    }
+
+    // ── Minimal Markdown renderer ────────────────────────────────────────────
+    function renderMarkdown(text) {
+      const escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      return escaped
+        // code blocks
+        .replace(/```[\s\S]*?```/g, m => `<pre><code>${m.slice(3, -3).replace(/^[^\n]*\n/, '')}</code></pre>`)
+        // inline code
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        // bold
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        // links
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+        // headers
+        .replace(/^### (.+)$/gm, '<strong>$1</strong>')
+        .replace(/^## (.+)$/gm, '<strong>$1</strong>')
+        .replace(/^# (.+)$/gm, '<strong>$1</strong>')
+        // bullet lists
+        .replace(/^\s*[-*] (.+)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+        // numbered lists
+        .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+        // paragraphs
+        .replace(/\n{2,}/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    }
+
+    // ── DOM helpers ──────────────────────────────────────────────────────────
     const messages = document.getElementById('messages');
     const form = document.getElementById('form');
     const input = document.getElementById('input');
     const send = document.getElementById('send');
     const sessionId = `session-${Date.now()}`;
 
-    function addMsg(text, role) {
+    function addMsg(content, role, asHtml = false) {
       const el = document.createElement('div');
       el.className = `msg ${role}`;
-      el.textContent = text;
+      if (asHtml) el.innerHTML = content;
+      else el.textContent = content;
       messages.appendChild(el);
       messages.scrollTop = messages.scrollHeight;
       return el;
     }
 
+    function addEscalationBanner(taskUrl) {
+      const el = document.createElement('div');
+      el.className = 'escalation-banner';
+      el.innerHTML = taskUrl
+        ? `⚠ Escalated — a task has been created in OpenEMR for provider review. <a href="${taskUrl}" target="_blank">View task</a>`
+        : '⚠ Escalated — a high-risk finding was detected. Please review with a licensed clinician.';
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function addFeedbackRow(spanId) {
+      if (!spanId) return;
+      const row = document.createElement('div');
+      row.className = 'feedback-row';
+
+      const up = document.createElement('button');
+      up.className = 'feedback-btn';
+      up.textContent = '👍';
+      up.title = 'Helpful';
+
+      const down = document.createElement('button');
+      down.className = 'feedback-btn';
+      down.textContent = '👎';
+      down.title = 'Not helpful';
+
+      const thanks = document.createElement('span');
+      thanks.className = 'feedback-thanks';
+      thanks.style.display = 'none';
+      thanks.textContent = 'Thanks for the feedback!';
+
+      async function sendFeedback(score) {
+        up.disabled = true;
+        down.disabled = true;
+        thanks.style.display = 'inline';
+        try {
+          await fetch('/feedback', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ spanId, score }),
+          });
+        } catch { /* non-fatal */ }
+      }
+
+      up.addEventListener('click', () => sendFeedback(1));
+      down.addEventListener('click', () => sendFeedback(-1));
+
+      row.appendChild(up);
+      row.appendChild(down);
+      row.appendChild(thanks);
+      messages.appendChild(row);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    // ── Input handling ───────────────────────────────────────────────────────
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
     });
@@ -64,12 +190,30 @@
       try {
         const res = await fetch('/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ message, sessionId }),
         });
+
+        if (res.status === 401) {
+          showAuthOverlay();
+          thinking.remove();
+          return;
+        }
+
         const data = await res.json();
-        thinking.textContent = data.error ?? data.text ?? JSON.stringify(data);
-        if (data.error) thinking.className = 'msg error';
+        if (data.error) {
+          thinking.textContent = data.error;
+          thinking.className = 'msg error';
+        } else {
+          thinking.className = 'msg agent';
+          thinking.innerHTML = '<p>' + renderMarkdown(data.text ?? JSON.stringify(data)) + '</p>';
+          messages.scrollTop = messages.scrollHeight;
+
+          if (data.escalated) {
+            addEscalationBanner(data.taskUrl);
+          }
+          addFeedbackRow(data.spanId);
+        }
       } catch (err) {
         thinking.textContent = 'Request failed: ' + err.message;
         thinking.className = 'msg error';
