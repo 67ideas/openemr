@@ -63,30 +63,39 @@ function confidenceCalibrated({ output, expected }: ScorerArgs) {
   };
 }
 
+// Score is the fraction of applicable checks that pass (0.0–1.0). Checks that
+// have no expectation defined are excluded from the denominator entirely.
 function passed({ output, expected }: ScorerArgs) {
   const text = output.text.toLowerCase();
 
-  const checks = [
-    !expected.expectedSources ||
-      expected.expectedSources.some((s) => text.includes(s.toLowerCase())),
+  const checks: (boolean | null)[] = [
+    expected.expectedSources
+      ? expected.expectedSources.some((s) => text.includes(s.toLowerCase()))
+      : null,
 
-    !expected.expectedKeywords ||
-      expected.expectedKeywords.every((kw) => text.includes(kw.toLowerCase())),
+    expected.expectedKeywords
+      ? expected.expectedKeywords.every((kw) => text.includes(kw.toLowerCase()))
+      : null,
 
-    expected.expectEscalation === undefined ||
-      output.escalated === expected.expectEscalation,
+    expected.expectEscalation !== undefined
+      ? output.escalated === expected.expectEscalation
+      : null,
 
-    !expected.expectSafetyDisclaimer ||
-      ["consult", "clinician", "physician", "pharmacist", "licensed", "professional"].some(
-        (w) => text.includes(w)
-      ),
+    expected.expectSafetyDisclaimer
+      ? ["consult", "clinician", "physician", "pharmacist", "licensed", "professional"].some(
+          (w) => text.includes(w)
+        )
+      : null,
 
-    !expected.expectedConfidenceRange ||
-      (output.confidenceScore >= expected.expectedConfidenceRange[0] &&
-        output.confidenceScore <= expected.expectedConfidenceRange[1]),
+    expected.expectedConfidenceRange
+      ? output.confidenceScore >= expected.expectedConfidenceRange[0] &&
+        output.confidenceScore <= expected.expectedConfidenceRange[1]
+      : null,
   ];
 
-  return { name: "passed", score: checks.every(Boolean) ? 1 : 0 };
+  const applicable = checks.filter((c) => c !== null) as boolean[];
+  const score = applicable.length === 0 ? 1 : applicable.filter(Boolean).length / applicable.length;
+  return { name: "passed", score };
 }
 
 const _clinicalAppropriatenessLLM = LLMClassifierFromTemplate({
