@@ -1,15 +1,21 @@
 import "dotenv/config";
 import { generateText, stepCountIs } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
 
-const anthropic = createAnthropic({ apiKey: process.env.AI_GATEWAY_API_KEY });
-import { initLogger, traced, wrapAISDKModel } from "braintrust";
+const gateway = createOpenAI({
+  baseURL: "https://ai-gateway.vercel.sh/v1",
+  apiKey: process.env.AI_GATEWAY_API_KEY,
+});
+import { initLogger, traced } from "braintrust";
 import { appendMessage, getHistory } from "./memory/conversationStore.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export let braintrustLogger: any = null;
 if (process.env.BRAINTRUST_API_KEY) {
-  braintrustLogger = initLogger({ projectName: "clinical-agent", asyncFlush: true });
+  braintrustLogger = initLogger({
+    projectName: "clinical-agent",
+    asyncFlush: true,
+  });
 }
 import { drugInteractionTool } from "./tools/drugInteraction.js";
 import { icd10LookupTool } from "./tools/icd10Lookup.js";
@@ -26,7 +32,6 @@ import {
 import type { DrugInteractionResult } from "./tools/drugInteraction.js";
 import type { InsuranceCoverageResult } from "./tools/insuranceCoverage.js";
 import { createEscalationTask } from "./tools/createOpenEMRTask.js";
-
 
 const CLINICAL_SYSTEM_PROMPT = `You are a clinical decision-support assistant helping healthcare professionals with informational queries.
 
@@ -90,7 +95,10 @@ export async function runAgent(
     async (span) => {
       span.log({ input: userMessage, metadata: { sessionId, patientContext } });
       const response = await _runAgent(userMessage, sessionId, patientContext);
-      span.log({ output: response.text, scores: { confidence: response.confidenceScore / 100 } });
+      span.log({
+        output: response.text,
+        scores: { confidence: response.confidenceScore / 100 },
+      });
       return { ...response, spanId: span.id };
     },
     { name: "runAgent" },
@@ -126,12 +134,7 @@ Insurance data is NOT included in this context — always call insuranceCoverage
   }
 
   const result = await generateText({
-    model: wrapAISDKModel(anthropic("claude-haiku-4-5")),
-    providerOptions: {
-      anthropic: {
-        thinking: { type: "enabled", budgetTokens: 8000 },
-      },
-    },
+    model: gateway.chat("anthropic/claude-haiku-4-5"),
     tools: {
       drugInteractionTool,
       icd10LookupTool,
@@ -143,10 +146,7 @@ Insurance data is NOT included in this context — always call insuranceCoverage
       insuranceCoverageTool,
     },
     stopWhen: stepCountIs(5),
-    messages: [
-      ...history,
-      { role: "user" as const, content: userMessage },
-    ],
+    messages: [...history, { role: "user" as const, content: userMessage }],
     system: CLINICAL_SYSTEM_PROMPT + contextBlock,
     onStepFinish: async ({ toolResults }) => {
       for (const tr of toolResults) {
@@ -169,8 +169,12 @@ Insurance data is NOT included in this context — always call insuranceCoverage
   await appendMessage(sessionId, { role: "assistant", content: result.text });
 
   const confidenceMatch = result.text.match(/\nCONFIDENCE:\s*(\d+)\s*$/);
-  const confidenceScore = confidenceMatch ? Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10))) : 50;
-  const cleanText = result.text.replace(/\nCONFIDENCE:\s*\d+\s*$/, "").trimEnd();
+  const confidenceScore = confidenceMatch
+    ? Math.min(100, Math.max(0, parseInt(confidenceMatch[1], 10)))
+    : 50;
+  const cleanText = result.text
+    .replace(/\nCONFIDENCE:\s*\d+\s*$/, "")
+    .trimEnd();
 
   const phoneLinks = result.steps
     .flatMap((step) => step.toolResults ?? [])
@@ -186,20 +190,28 @@ Insurance data is NOT included in this context — always call insuranceCoverage
     });
 
   const uniquePhoneLinks = [...new Set(phoneLinks)];
-  const phoneBlock = uniquePhoneLinks.filter((link) => !cleanText.includes(link)).join("\n");
-  const textWithPhones = phoneBlock ? `${cleanText}\n\n${phoneBlock}` : cleanText;
+  const phoneBlock = uniquePhoneLinks
+    .filter((link) => !cleanText.includes(link))
+    .join("\n");
+  const textWithPhones = phoneBlock
+    ? `${cleanText}\n\n${phoneBlock}`
+    : cleanText;
 
-  const finalText = safetyPrefix ? `${safetyPrefix}${textWithPhones}` : textWithPhones;
+  const finalText = safetyPrefix
+    ? `${safetyPrefix}${textWithPhones}`
+    : textWithPhones;
 
   const toolCalls: ToolCallRecord[] = result.steps.flatMap((step) =>
     (step.toolCalls ?? []).map((tc) => {
-      const tr = (step.toolResults ?? []).find((r) => r.toolCallId === tc.toolCallId);
+      const tr = (step.toolResults ?? []).find(
+        (r) => r.toolCallId === tc.toolCallId,
+      );
       return {
         name: tc.toolName,
         input: tc.input as Record<string, unknown>,
         output: tr?.output ?? null,
       };
-    })
+    }),
   );
 
   let taskCreated = false;
@@ -214,6 +226,12 @@ Insurance data is NOT included in this context — always call insuranceCoverage
     taskUrl = taskResult.taskUrl;
   }
 
-  return { text: finalText, escalated, confidenceScore, toolCalls, taskCreated, taskUrl };
+  return {
+    text: finalText,
+    escalated,
+    confidenceScore,
+    toolCalls,
+    taskCreated,
+    taskUrl,
+  };
 }
-

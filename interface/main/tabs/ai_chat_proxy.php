@@ -23,12 +23,18 @@ $url = $agentBase . '/chat';
 
 $body = file_get_contents('php://input');
 
+$headers = ['Content-Type: application/json'];
+$agentApiKey = getenv('AGENT_API_KEY');
+if ($agentApiKey) {
+    $headers[] = 'Authorization: Bearer ' . $agentApiKey;
+}
+
 $ch = curl_init($url);
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST           => true,
     CURLOPT_POSTFIELDS     => $body,
-    CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+    CURLOPT_HTTPHEADER     => $headers,
     CURLOPT_TIMEOUT        => 120,
 ]);
 
