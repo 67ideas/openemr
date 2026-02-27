@@ -13,3 +13,7 @@
 - Added thumbs up/down feedback row after each agent response; feedback is logged to Braintrust via `logger.logFeedback()`; `spanId` returned in every `AgentResponse`
 - Added `createOpenEMRTask` HITL action: when a drug interaction escalation fires with patient context, automatically POSTs a high-urgency task to OpenEMR's patient messaging API
 - Wrote `agent/ARCHITECTURE.md`: single-page document covering agent architecture, verification strategy, eval results, observability, and contribution
+
+# Friday (2026-02-27)
+
+- Added dashboard AI quick-explain interactions for allergies, medical problems, medications, and prescriptions: hovering shows an AI tooltip and clicking opens the AI panel and auto-sends `in the context of this patient, explain in more detail: <item>`

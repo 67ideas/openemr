@@ -15,7 +15,7 @@
     {% endif %}
 {% else %}
     {% for l in list %}
-        <div class="list-group-item py-1 px-1">
+        <div class="list-group-item py-1 px-1 js-ai-explain-item" data-ai-item-title="{{ l.title|attr }}" title="{{ 'Ask AI to explain this in more detail'|xla|attr }}">
             {{ l.title|text }}
         </div>
     {% endfor %}

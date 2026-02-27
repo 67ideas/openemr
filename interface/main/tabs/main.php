@@ -1126,6 +1126,19 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
         .finally(function () { setLoading(false); });
         }); // end getPatientContext().then
     }
+
+    window.openAiAssistantWithPrompt = function(promptText) {
+        openPanel();
+        if (typeof promptText !== 'string') {
+            return;
+        }
+        var text = promptText.trim();
+        if (!text) {
+            return;
+        }
+        input.value = text;
+        sendMessage();
+    };
 })();
 </script>
 </body>

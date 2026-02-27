@@ -970,8 +970,38 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
             ?>
         }
 
+        function bindAiExplainTooltips() {
+            document.querySelectorAll('#prescriptions_ps_expand .list-group-item, #prescriptions_ps_expand table tbody tr').forEach(function (el) {
+                if (el.classList.contains('js-ai-explain-item')) {
+                    return;
+                }
+                const rawText = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                if (!rawText) {
+                    return;
+                }
+                el.classList.add('js-ai-explain-item');
+                el.setAttribute('data-ai-item-title', rawText);
+                el.setAttribute('title', <?php echo js_escape(xl('Ask AI to explain this in more detail')); ?>);
+            });
+
+            document.querySelectorAll('.js-ai-explain-item').forEach(function (el) {
+                el.style.cursor = 'help';
+                el.addEventListener('click', function () {
+                    const itemTitle = (el.getAttribute('data-ai-item-title') || '').trim();
+                    if (!itemTitle) {
+                        return;
+                    }
+                    const prompt = 'in the context of this patient, explain in more detail: ' + itemTitle;
+                    if (top && typeof top.openAiAssistantWithPrompt === 'function') {
+                        top.openAiAssistantWithPrompt(prompt);
+                    }
+                });
+            });
+        }
+
         $(window).on('load', function () {
             setMyPatient();
+            bindAiExplainTooltips();
         });
     </script>
 
