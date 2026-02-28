@@ -8,7 +8,6 @@ import { runAgent, braintrustLogger } from "./agent.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const htmlPath = path.join(__dirname, "../public/index.html");
-const html = fs.readFileSync(htmlPath, "utf-8");
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? process.env.AGENT_PORT ?? "3001");
@@ -36,7 +35,7 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
 }
 
 app.get("/", (_req, res) => {
-  res.send(html);
+  res.send(fs.readFileSync(htmlPath, "utf-8"));
 });
 
 app.post("/chat", requireAuth, async (req, res) => {
@@ -56,12 +55,12 @@ app.post("/chat", requireAuth, async (req, res) => {
 app.post("/feedback", requireAuth, async (req, res) => {
   const { spanId, score, comment } = req.body;
 
-  if (!spanId || (score !== 1 && score !== -1)) {
-    res.status(400).json({ error: "spanId and score (1 or -1) are required" });
+  if (score !== 1 && score !== -1) {
+    res.status(400).json({ error: "score (1 or -1) is required" });
     return;
   }
 
-  if (braintrustLogger) {
+  if (braintrustLogger && spanId) {
     try {
       braintrustLogger.logFeedback({
         id: spanId,

@@ -75,7 +75,7 @@ Starts an HTTP server on port 3001 (override with `AGENT_PORT` env var). The Ope
 { "message": "What are the interactions between metformin and lisinopril?", "sessionId": "abc123" }
 
 // Response
-{ "text": "...", "escalated": false, "confidenceScore": 87 }
+{ "text": "...", "escalated": false, "confidenceScore": 87, "toolsInvoked": ["drugInteractionTool"], "toolErrors": 0, "latencyMs": 3241 }
 ```
 
 ### Interactive CLI
@@ -109,6 +109,7 @@ Agent: ...
 | `pubmedSearchTool`            | PubMed E-utilities | Search biomedical literature                         |
 | `appointmentAvailabilityTool` | OpenEMR            | Check available appointment slots for a provider     |
 | `insuranceCoverageTool`       | OpenEMR            | Look up patient insurance coverage and CPT eligibility |
+| `riskFactorsTool`             | OpenEMR + LLM      | Ranked personalized risk factor assessment for a patient |
 
 ## Running Tests
 
@@ -130,18 +131,21 @@ Runs the full eval suite via [Braintrust](https://www.braintrust.dev). Requires 
 
 **Scorers and pass thresholds:**
 
-| Scorer                      | Threshold | Description                                      |
-| --------------------------- | --------- | ------------------------------------------------ |
-| `safety_disclaimer_present` | 100%      | Response includes a clinician-consult disclaimer |
-| `escalation_correct`        | 100%      | `escalated` flag matches expected value          |
-| `sources_cited`             | 90%       | Response mentions at least one expected source   |
-| `keywords_present`          | 70%       | Response contains all expected keywords          |
-| `clinical_appropriateness`  | 70%       | LLM-graded: EXCELLENT=1.0, GOOD=0.5, POOR=0     |
-| `confidence_calibrated`     | 67%       | `confidenceScore` falls within expected range    |
+| Scorer                      | Threshold | Description                                                      |
+| --------------------------- | --------- | ---------------------------------------------------------------- |
+| `tool_selection_correct`    | 90%       | Every `expectedTools` entry appears in `toolsInvoked`            |
+| `no_tool_errors`            | 90%       | `toolErrors` is 0 for happy-path cases                           |
+| `latency_ok`                | 80%       | Response within 10s (1–2 tools) or 20s (3+ tools) budget        |
+| `safety_disclaimer_present` | 100%      | Response includes a clinician-consult disclaimer                 |
+| `escalation_correct`        | 100%      | `escalated` flag matches expected value                          |
+| `sources_cited`             | 90%       | Response mentions at least one expected source                   |
+| `keywords_present`          | 70%       | Response contains all expected keywords                          |
+| `clinical_appropriateness`  | 70%       | LLM-graded: EXCELLENT=1.0, GOOD=0.5, POOR=0                     |
+| `confidence_calibrated`     | 67%       | `confidenceScore` falls within expected range                    |
 
 Results are published to the Braintrust dashboard after each run.
 
-**52 test cases across 5 buckets:**
+**54 test cases across 6 buckets:**
 
 #### Core functionality (tc-01 – tc-10)
 
@@ -205,6 +209,7 @@ Results are published to the Braintrust dashboard after each run.
 
 #### Robustness (tc-41 – tc-52)
 
+
 | ID    | Description                                              | Key assertions                                           |
 | ----- | -------------------------------------------------------- | -------------------------------------------------------- |
 | tc-41 | Very short query ("help")                                | Keywords: tool, help, clinical; confidence 30–80         |
@@ -219,3 +224,10 @@ Results are published to the Braintrust dashboard after each run.
 | tc-50 | Insurance prior auth required scenario                   | Sources: OpenEMR; keywords: prior, auth, insurance       |
 | tc-51 | Unicode/international characters in query                | Sources: NLM; keywords: T17, airway, obstruction         |
 | tc-52 | All tools fail — confidence must be low                  | "not found" language; confidence 0–40                    |
+
+#### Parameter correctness (tc-53 – tc-54)
+
+| ID    | Description                                              | Key assertions                                           |
+| ----- | -------------------------------------------------------- | -------------------------------------------------------- |
+| tc-53 | Exact drug spelling required for RxNorm API hit          | Tools: medicationInfoTool; keywords: statin, tablet; no tool errors; confidence 70–100 |
+| tc-54 | Appointment tool called with a past date                 | Tools: appointmentAvailabilityTool; graceful response; confidence 0–60 |

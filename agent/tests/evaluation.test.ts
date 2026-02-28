@@ -82,4 +82,41 @@ describe("OpenEMR AI Agent Evaluation", () => {
     expect(typeof text).toBe("string");
     expect(text.length).toBeGreaterThan(0);
   }, 30_000);
+
+  it("TC-CONSISTENCY-01: same ICD-10 query returns the same code across two independent calls", async () => {
+    const { text: r1 } = await runAgent(
+      "What is the ICD-10 code for essential hypertension?",
+      "consistency-s1",
+    );
+    const { text: r2 } = await runAgent(
+      "What is the ICD-10 code for essential hypertension?",
+      "consistency-s2",
+    );
+    expect(r1.toLowerCase()).toContain("i10");
+    expect(r2.toLowerCase()).toContain("i10");
+  }, 60_000);
+
+  it("TC-CONSISTENCY-02: drug class lookup returns same class across two independent calls", async () => {
+    const { text: r1 } = await runAgent(
+      "What drug class is metformin?",
+      "consistency-s3",
+    );
+    const { text: r2 } = await runAgent(
+      "What drug class is metformin?",
+      "consistency-s4",
+    );
+    expect(r1.toLowerCase()).toContain("biguanide");
+    expect(r2.toLowerCase()).toContain("biguanide");
+  }, 60_000);
+
+  it("TC-LATENCY-01: simple single-tool query responds within 15 seconds", async () => {
+    const start = Date.now();
+    const { latencyMs } = await runAgent(
+      "What is the ICD-10 code for essential hypertension?",
+      "latency-s1",
+    );
+    const elapsed = Date.now() - start;
+    expect(latencyMs).toBeGreaterThan(0);
+    expect(elapsed).toBeLessThan(15_000);
+  }, 20_000);
 });

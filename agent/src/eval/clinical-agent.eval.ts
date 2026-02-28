@@ -14,6 +14,36 @@ type ScorerArgs = {
   expected: EvalExpected;
 };
 
+function toolSelectionCorrect({ output, expected }: ScorerArgs) {
+  if (!expected.expectedTools) return { name: "tool_selection_correct", score: 1 };
+  const correct = expected.expectedTools.every((t) => output.toolsInvoked.includes(t));
+  return {
+    name: "tool_selection_correct",
+    score: correct ? 1 : 0,
+    metadata: { expected: expected.expectedTools, actual: output.toolsInvoked },
+  };
+}
+
+function noToolErrors({ output, expected }: ScorerArgs) {
+  if (!expected.expectNoToolErrors) return { name: "no_tool_errors", score: 1 };
+  return {
+    name: "no_tool_errors",
+    score: output.toolErrors === 0 ? 1 : 0,
+    metadata: { toolErrors: output.toolErrors },
+  };
+}
+
+function latencyOk({ output, expected }: ScorerArgs) {
+  const budget =
+    expected.latencyBudgetMs ??
+    (expected.expectedTools && expected.expectedTools.length > 2 ? 20_000 : 10_000);
+  return {
+    name: "latency_ok",
+    score: output.latencyMs <= budget ? 1 : 0,
+    metadata: { latencyMs: output.latencyMs, budgetMs: budget },
+  };
+}
+
 function sourcesCited({ output, expected }: ScorerArgs) {
   if (!expected.expectedSources) return { name: "sources_cited", score: 1 };
   const text = output.text.toLowerCase();
@@ -134,6 +164,9 @@ await Eval("clinical-agent", {
     return runAgent(input, `bt-${Date.now()}`);
   },
   scores: [
+    toolSelectionCorrect,
+    noToolErrors,
+    latencyOk,
     sourcesCited,
     keywordsPresent,
     escalationCorrect,

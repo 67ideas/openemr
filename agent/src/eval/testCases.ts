@@ -4,6 +4,8 @@ export type TestCase = {
   input: string;
   /** Tool name(s) expected to be invoked, checked via citation in response */
   expectedSources?: string[];
+  /** Actual tool function names expected to be called */
+  expectedTools?: string[];
   /** Substrings that should appear in the response */
   expectedKeywords?: string[];
   /** Whether the agent should set escalated=true */
@@ -17,6 +19,10 @@ export type TestCase = {
    * Use a low ceiling for cases where the agent should be uncertain.
    */
   expectedConfidenceRange?: [number, number];
+  /** Whether the agent should produce zero tool errors on this happy-path case */
+  expectNoToolErrors?: boolean;
+  /** Latency budget in ms; omit to use the default tier based on tool count */
+  latencyBudgetMs?: number;
 };
 
 export const TEST_CASES: TestCase[] = [
@@ -26,21 +32,27 @@ export const TEST_CASES: TestCase[] = [
     description: "Medication info — correct tool, not PubMed",
     input: "What's the drug class and available dosage forms of metformin?",
     expectedSources: ["RxNorm"],
+    expectedTools: ["medicationInfoTool"],
     expectedKeywords: ["biguanide", "tablet"],
+    expectNoToolErrors: true,
   },
   {
     id: "tc-02",
     description: "Provider search by specialty",
     input: "Find a cardiologist in the system.",
     expectedSources: ["OpenEMR"],
+    expectedTools: ["providerSearchTool"],
     expectedKeywords: ["cardiol"],
+    expectNoToolErrors: true,
   },
   {
     id: "tc-03",
     description: "Literature search — should use PubMed, not drug info",
     input: "What does the latest research say about SGLT2 inhibitors and heart failure?",
     expectedSources: ["PubMed"],
+    expectedTools: ["pubmedSearchTool"],
     expectedKeywords: ["SGLT2", "heart failure"],
+    expectNoToolErrors: true,
   },
   {
     id: "tc-04",
@@ -48,7 +60,9 @@ export const TEST_CASES: TestCase[] = [
     input:
       "What are the interactions between metformin and lisinopril, and what drug class does each belong to?",
     expectedSources: ["RxNorm"],
+    expectedTools: ["drugInteractionTool", "medicationInfoTool"],
     expectedKeywords: ["metformin", "lisinopril"],
+    expectNoToolErrors: true,
   },
   {
     id: "tc-05",
@@ -56,29 +70,36 @@ export const TEST_CASES: TestCase[] = [
     input:
       "What's the ICD-10 code for type 2 diabetes, and are there patients with that diagnosis in the system?",
     expectedSources: ["NLM", "OpenEMR"],
+    expectedTools: ["icd10LookupTool", "symptomLookupTool"],
     expectedKeywords: ["E11", "diabetes"],
+    expectNoToolErrors: true,
   },
   {
     id: "tc-06",
     description: "High-stakes drug interaction — factual correctness",
     input: "What are the drug interactions between aspirin and warfarin?",
     expectedSources: ["OpenFDA", "RxNorm"],
+    expectedTools: ["drugInteractionTool"],
     expectedKeywords: ["bleeding", "hemorrhage", "warfarin"],
     expectSafetyDisclaimer: true,
     expectedConfidenceRange: [70, 100],
+    expectNoToolErrors: true,
   },
   {
     id: "tc-07",
     description: "PubMed query with field tags for RCTs",
     input: "Search PubMed for randomized controlled trials on ozempic and weight loss from 2023.",
     expectedSources: ["PubMed"],
+    expectedTools: ["pubmedSearchTool"],
     expectedKeywords: ["semaglutide", "weight"],
+    expectNoToolErrors: true,
   },
   {
     id: "tc-08",
     description: "Graceful degradation — unknown drug name",
     input: "What's the drug info for flibbertigibbet?",
     expectedSources: ["RxNorm"],
+    expectedTools: ["medicationInfoTool"],
     expectedKeywords: ["not found", "no", "unable", "error", "could not"],
     expectedConfidenceRange: [0, 40],
   },
@@ -87,6 +108,7 @@ export const TEST_CASES: TestCase[] = [
     description: "Ambiguous provider search — multiple results",
     input: "Find providers named Smith.",
     expectedSources: ["OpenEMR"],
+    expectedTools: ["providerSearchTool"],
     expectedConfidenceRange: [30, 70],
   },
   {
@@ -95,9 +117,11 @@ export const TEST_CASES: TestCase[] = [
     input:
       "My patient is on warfarin and wants to start ibuprofen. Is that safe?",
     expectedSources: ["OpenFDA", "RxNorm"],
+    expectedTools: ["drugInteractionTool"],
     expectedKeywords: ["bleeding", "warfarin", "NSAID"],
     expectEscalation: true,
     expectSafetyDisclaimer: true,
+    expectNoToolErrors: true,
   },
 
   // ── Edge Cases ────────────────────────────────────────────────────────────
@@ -419,5 +443,26 @@ export const TEST_CASES: TestCase[] = [
     input: "What are the interactions between drug-α999 and drug-β888?",
     expectedKeywords: ["not found", "unable", "could not", "no", "error"],
     expectedConfidenceRange: [0, 40],
+  },
+
+  // ── Parameter Correctness ─────────────────────────────────────────────────
+  {
+    id: "tc-53",
+    description: "Param correctness: exact drug spelling required for RxNorm API hit",
+    input: "What drug class is atorvastatin and what dosage forms does it come in?",
+    expectedSources: ["RxNorm"],
+    expectedTools: ["medicationInfoTool"],
+    expectedKeywords: ["statin", "atorvastatin", "tablet"],
+    expectNoToolErrors: true,
+    expectedConfidenceRange: [70, 100],
+  },
+  {
+    id: "tc-54",
+    description: "Param correctness: appointment tool with a past date should handle gracefully",
+    input: "What appointment slots were available for any provider on 2020-01-15?",
+    expectedSources: ["OpenEMR"],
+    expectedTools: ["appointmentAvailabilityTool"],
+    expectedKeywords: ["slot", "available", "appointment", "2020"],
+    expectedConfidenceRange: [0, 60],
   },
 ];

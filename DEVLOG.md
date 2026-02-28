@@ -17,3 +17,8 @@
 # Friday (2026-02-27)
 
 - Added dashboard AI quick-explain interactions for allergies, medical problems, medications, and prescriptions: hovering shows an AI tooltip and clicking opens the AI panel and auto-sends `in the context of this patient, explain in more detail: <item>`
+
+# Saturday (2026-02-28)
+
+- Added `riskFactorsTool` to the clinical agent: fetches patient demographics, medications, and problems from OpenEMR, then makes a secondary LLM call to generate a ranked, personalized risk factor assessment (factor, rationale, severity, category) specific to that patient
+- Filled eval framework gaps: added `toolsInvoked`, `toolErrors`, and `latencyMs` fields to `AgentResponse`; added `toolSelectionCorrect`, `noToolErrors`, and `latencyOk` scorers to Braintrust eval harness; added `expectedTools` and `expectNoToolErrors` fields to `TestCase`; added 2 parameter-correctness test cases (tc-53, tc-54); added true consistency tests (2 repeated-call pairs) and latency assertion to Vitest suite

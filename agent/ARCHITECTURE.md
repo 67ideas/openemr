@@ -2,7 +2,7 @@
 
 ## Agent Architecture
 
-The agent is a Node.js/TypeScript HTTP server that wraps an Anthropic LLM with 8 OpenEMR-integrated tools. It runs alongside the OpenEMR PHP application and is accessible from the OpenEMR UI via an authenticated iframe.
+The agent is a Node.js/TypeScript HTTP server that wraps an Anthropic LLM with 9 OpenEMR-integrated tools. It runs alongside the OpenEMR PHP application and is accessible from the OpenEMR UI via an authenticated iframe.
 
 ```mermaid
 flowchart TD
@@ -77,7 +77,7 @@ This agent extends OpenEMR with a production-grade AI layer that was not previou
 |---|---|---|
 | Clinical agent server | `agent/src/server.ts` | Express HTTP server, auth middleware, feedback endpoint |
 | LLM orchestration | `agent/src/agent.ts` | `generateText` + `stepCountIs(5)`, Anthropic extended thinking |
-| 8 integrated tools | `agent/src/tools/` | OpenFDA, RxNorm, NLM ICD-10, PubMed, OpenEMR patients/providers/appointments/insurance |
+| 9 integrated tools | `agent/src/tools/` | OpenFDA, RxNorm, NLM ICD-10, PubMed, OpenEMR patients/providers/appointments/insurance, patient risk factors |
 | Safety verification | `agent/src/verification/` | Domain checks, escalation flags, safety disclaimers |
 | HITL task creation | `agent/src/tools/createOpenEMRTask.ts` | Auto-creates OpenEMR provider tasks on escalation |
 | Redis session store | `agent/src/memory/conversationStore.ts` | Persistent multi-turn conversation history |

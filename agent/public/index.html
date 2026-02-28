@@ -130,7 +130,6 @@
     }
 
     function addFeedbackRow(spanId) {
-      if (!spanId) return;
       const row = document.createElement('div');
       row.className = 'feedback-row';
 
@@ -154,11 +153,13 @@
         down.disabled = true;
         thanks.style.display = 'inline';
         try {
-          await fetch('/feedback', {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify({ spanId, score }),
-          });
+          if (spanId) {
+            await fetch('/feedback', {
+              method: 'POST',
+              headers: authHeaders(),
+              body: JSON.stringify({ spanId, score }),
+            });
+          }
         } catch { /* non-fatal */ }
       }
 

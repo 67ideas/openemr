@@ -25,6 +25,7 @@ import { providerSearchTool } from "./tools/providerSearch.js";
 import { pubmedSearchTool } from "./tools/pubmedSearch.js";
 import { appointmentAvailabilityTool } from "./tools/appointmentAvailability.js";
 import { insuranceCoverageTool } from "./tools/insuranceCoverage.js";
+import { riskFactorsTool } from "./tools/riskFactors.js";
 import {
   buildSafetyPrefix,
   verifyDrugInteractionResult,
@@ -44,6 +45,7 @@ You have access to the following tools:
 - pubmedSearchTool: Search PubMed biomedical literature. Supports full PubMed query syntax with field tags (MeSH, title/abstract, publication type, date ranges). Use for evidence-based research, finding clinical studies, or literature on a diagnosis or treatment.
 - appointmentAvailabilityTool: Check available and booked appointment slots for a provider in OpenEMR. Accepts provider name, specialty, a specific date, or a date range (YYYY-MM-DD). Returns 30-minute slots within 09:00–17:00 working hours. Each available slot has a bookingLinks entry — always render available slots as markdown links using those URLs, e.g. [09:00](http://...).
 - insuranceCoverageTool: Look up a patient’s insurance coverage in OpenEMR by patient PID. Returns primary, secondary, and/or tertiary insurance details including plan name, plan ID, policy number, copay, and deductible. Accepts an optional cptCode parameter to check whether a specific CPT procedure code is covered under the patient’s plan (returns coverage status: covered, not_covered, or prior_auth_required, plus any referral or notes).
+|- riskFactorsTool: Analyze a patient’s demographics, medications, and medical problems to generate a personalized clinical risk factor assessment. Returns ranked risk factors with rationale, severity, and category. Use when asked about patient risk, risk factors, or health risks for the current patient.
 
 Guidelines:
 - Always use tools to retrieve factual clinical data rather than relying on your own memory
@@ -81,6 +83,9 @@ export type AgentResponse = {
   escalated: boolean;
   confidenceScore: number;
   toolCalls: ToolCallRecord[];
+  toolsInvoked: string[];
+  toolErrors: number;
+  latencyMs: number;
   spanId?: string;
   taskCreated?: boolean;
   taskUrl?: string;
@@ -110,6 +115,7 @@ async function _runAgent(
   sessionId: string,
   patientContext: PatientContext | null,
 ): Promise<AgentResponse> {
+  const startTime = Date.now();
   const history = await getHistory(sessionId);
 
   let escalated = false;
@@ -144,6 +150,7 @@ Insurance data is NOT included in this context — always call insuranceCoverage
       pubmedSearchTool,
       appointmentAvailabilityTool,
       insuranceCoverageTool,
+      riskFactorsTool,
     },
     stopWhen: stepCountIs(5),
     messages: [...history, { role: "user" as const, content: userMessage }],
@@ -214,6 +221,14 @@ Insurance data is NOT included in this context — always call insuranceCoverage
     }),
   );
 
+  const toolsInvoked = toolCalls.map((tc) => tc.name);
+  const toolErrors = toolCalls.filter((tc) => {
+    if (tc.output === null) return true;
+    if (typeof tc.output === "object" && tc.output !== null && "error" in tc.output) return true;
+    return false;
+  }).length;
+  const latencyMs = Date.now() - startTime;
+
   let taskCreated = false;
   let taskUrl: string | undefined;
 
@@ -231,6 +246,9 @@ Insurance data is NOT included in this context — always call insuranceCoverage
     escalated,
     confidenceScore,
     toolCalls,
+    toolsInvoked,
+    toolErrors,
+    latencyMs,
     taskCreated,
     taskUrl,
   };

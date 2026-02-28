@@ -644,6 +644,26 @@ $twig = (new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel()))->get
     margin-top: 3px;
     align-self: flex-start;
 }
+.ai-feedback-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    align-self: flex-start;
+}
+.ai-feedback-btn {
+    background: #fff;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 1px 8px;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    cursor: pointer;
+    color: #495057;
+}
+.ai-feedback-btn:hover:not(:disabled) { background: #f1f3f5; }
+.ai-feedback-btn:disabled { opacity: 0.55; cursor: default; }
+.ai-feedback-thanks { font-size: 0.72rem; color: #6c757d; }
 .ai-escalate-btn {
     display: inline-flex;
     align-items: center;
@@ -848,6 +868,7 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
 (function () {
     var SESSION_ID = 'ai-' + Date.now();
     var AGENT_URL = '<?php echo $GLOBALS['webroot']; ?>/interface/main/tabs/ai_chat_proxy.php';
+    var FEEDBACK_URL = '<?php echo $GLOBALS['webroot']; ?>/interface/main/tabs/ai_feedback_proxy.php';
 
     var panel   = document.getElementById('ai-chat-panel');
     var toggle  = document.getElementById('ai-chat-fab');
@@ -1075,6 +1096,49 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
         return div;
     }
 
+    function appendFeedbackRow(spanId) {
+        var row = document.createElement('div');
+        row.className = 'ai-feedback-row';
+
+        var up = document.createElement('button');
+        up.className = 'ai-feedback-btn';
+        up.type = 'button';
+        up.title = 'Helpful';
+        up.textContent = '👍';
+
+        var down = document.createElement('button');
+        down.className = 'ai-feedback-btn';
+        down.type = 'button';
+        down.title = 'Not helpful';
+        down.textContent = '👎';
+
+        var thanks = document.createElement('span');
+        thanks.className = 'ai-feedback-thanks';
+        thanks.style.display = 'none';
+        thanks.textContent = 'Thanks for the feedback';
+
+        function sendFeedback(score) {
+            up.disabled = true;
+            down.disabled = true;
+            thanks.style.display = 'inline';
+            if (!spanId) return;
+            fetch(FEEDBACK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ spanId: spanId, score: score })
+            }).catch(function () {});
+        }
+
+        up.addEventListener('click', function () { sendFeedback(1); });
+        down.addEventListener('click', function () { sendFeedback(-1); });
+
+        row.appendChild(up);
+        row.appendChild(down);
+        row.appendChild(thanks);
+        messages.appendChild(row);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
     function setLoading(on) {
         send.disabled = on;
         input.disabled = on;
@@ -1119,6 +1183,7 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
         .then(function (data) {
             appendToolCalls(data.toolCalls);
             appendMessage(data.text, 'assistant', { escalated: data.escalated, confidenceScore: data.confidenceScore });
+            appendFeedbackRow(data.spanId);
         })
         .catch(function () {
             appendMessage('<?php echo xlt('Could not reach AI assistant. Make sure the agent server is running.'); ?>', 'assistant');
