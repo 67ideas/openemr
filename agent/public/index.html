@@ -32,6 +32,10 @@
     #input:focus { border-color: #1a6ea8; }
     button[type=submit] { padding: 10px 18px; background: #1a6ea8; color: #fff; border: none; border-radius: 8px; font-size: .9rem; cursor: pointer; }
     button[type=submit]:disabled { opacity: .5; cursor: not-allowed; }
+    #mic-btn { padding: 10px 12px; background: #fff; color: #1a6ea8; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; cursor: pointer; line-height: 1; flex-shrink: 0; }
+    #mic-btn.recording { background: #fee2e2; border-color: #ef4444; color: #ef4444; animation: pulse 1s infinite; }
+    #mic-btn:disabled { opacity: .5; cursor: not-allowed; }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
     #auth-overlay { position: absolute; inset: 0; background: rgba(244,246,249,.97); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border-radius: 12px; }
     #auth-overlay p { color: #b00; font-weight: 600; font-size: 1rem; }
     #auth-overlay small { color: #666; font-size: .85rem; }
@@ -43,6 +47,7 @@
     <div id="messages"></div>
     <form id="form">
       <textarea id="input" placeholder="Ask a clinical question…" rows="1"></textarea>
+      <button type="button" id="mic-btn" title="Record audio">🎤</button>
       <button type="submit" id="send">Send</button>
     </form>
     <div id="auth-overlay" style="display:none">
@@ -172,6 +177,61 @@
       messages.appendChild(row);
       messages.scrollTop = messages.scrollHeight;
     }
+
+    // ── STT / Microphone ─────────────────────────────────────────────────────
+    const micBtn = document.getElementById('mic-btn');
+    let mediaRecorder = null;
+    let audioChunks = [];
+
+    micBtn.addEventListener('click', async () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        return;
+      }
+
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        alert('Microphone access denied.');
+        return;
+      }
+
+      audioChunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.addEventListener('dataavailable', e => { if (e.data.size > 0) audioChunks.push(e.data); });
+      mediaRecorder.addEventListener('stop', async () => {
+        stream.getTracks().forEach(t => t.stop());
+        micBtn.classList.remove('recording');
+        micBtn.textContent = '🎤';
+        micBtn.disabled = true;
+
+        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const mimeType = blob.type;
+        try {
+          const res = await fetch('/transcribe', {
+            method: 'POST',
+            headers: { ...authHeaders(), 'Content-Type': mimeType },
+            body: blob,
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.text) {
+              input.value = (input.value ? input.value + ' ' : '') + data.text;
+              input.focus();
+            }
+          }
+        } catch (err) {
+          console.error('Transcription failed:', err);
+        } finally {
+          micBtn.disabled = false;
+        }
+      });
+
+      mediaRecorder.start();
+      micBtn.classList.add('recording');
+      micBtn.textContent = '⏹';
+    });
 
     // ── Input handling ───────────────────────────────────────────────────────
     input.addEventListener('keydown', e => {

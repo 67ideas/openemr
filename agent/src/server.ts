@@ -4,7 +4,11 @@ import path from "path";
 import { fileURLToPath } from "url";
 import express, { type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import { experimental_transcribe as transcribe } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { runAgent, braintrustLogger } from "./agent.js";
+
+const sttClient = createOpenAI({ apiKey: process.env.OPENAI_STT_KEY });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const htmlPath = path.join(__dirname, "../public/index.html");
@@ -73,6 +77,24 @@ app.post("/feedback", requireAuth, async (req, res) => {
   }
 
   res.json({ ok: true });
+});
+
+app.post("/transcribe", requireAuth, express.raw({ type: "audio/*", limit: "25mb" }), async (req, res) => {
+  const contentType = req.headers["content-type"] ?? "audio/webm";
+  const audioBuffer = req.body as Buffer;
+
+  if (!audioBuffer || audioBuffer.length === 0) {
+    res.status(400).json({ error: "audio body is required" });
+    return;
+  }
+
+  const result = await transcribe({
+    model: sttClient.transcription("whisper-1"),
+    audio: audioBuffer,
+    providerOptions: { openai: { language: "en" } },
+  });
+
+  res.json({ text: result.text });
 });
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));

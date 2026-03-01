@@ -856,9 +856,14 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
     <div id="ai-chat-footer">
         <div id="ai-patient-chip" style="display:none;"></div>
         <textarea id="ai-chat-input" class="form-control mb-2" rows="2" placeholder="<?php echo xla('Ask a clinical question...'); ?>"></textarea>
-        <button id="ai-chat-send" class="btn btn-primary btn-sm btn-block">
-            <i class="fas fa-paper-plane mr-1"></i><?php echo xlt('Send'); ?>
-        </button>
+        <div class="d-flex" style="gap:6px;">
+            <button id="ai-chat-mic" type="button" class="btn btn-outline-secondary btn-sm" title="<?php echo xla('Record audio'); ?>">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button id="ai-chat-send" class="btn btn-primary btn-sm flex-grow-1">
+                <i class="fas fa-paper-plane mr-1"></i><?php echo xlt('Send'); ?>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -869,16 +874,103 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
     var SESSION_ID = 'ai-' + Date.now();
     var AGENT_URL = '<?php echo $GLOBALS['webroot']; ?>/interface/main/tabs/ai_chat_proxy.php';
     var FEEDBACK_URL = '<?php echo $GLOBALS['webroot']; ?>/interface/main/tabs/ai_feedback_proxy.php';
-
     var panel   = document.getElementById('ai-chat-panel');
     var toggle  = document.getElementById('ai-chat-fab');
     var close   = document.getElementById('ai-chat-close');
     var input   = document.getElementById('ai-chat-input');
     var send    = document.getElementById('ai-chat-send');
+    var mic     = document.getElementById('ai-chat-mic');
     var messages = document.getElementById('ai-chat-messages');
     var patientChip = document.getElementById('ai-patient-chip');
 
     var mainBox = document.getElementById('mainBox');
+
+    // ── STT mic recording (Web Speech API) ──────────────────────────────────
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var recognition = null;
+    var sttBaseText = '';
+    var sttPauseTimer = null;
+    var sttActive = false;
+
+    function sttSetActive(active) {
+        sttActive = active;
+        if (active) {
+            mic.classList.remove('btn-outline-secondary');
+            mic.classList.add('btn-danger');
+            mic.innerHTML = '<i class="fas fa-stop"></i>';
+        } else {
+            mic.classList.remove('btn-danger');
+            mic.classList.add('btn-outline-secondary');
+            mic.innerHTML = '<i class="fas fa-microphone"></i>';
+        }
+    }
+
+    function sttStart() {
+        sttBaseText = '';
+        recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.addEventListener('result', function (e) {
+            var interim = '';
+            var final = '';
+            for (var i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) {
+                    final += e.results[i][0].transcript;
+                } else {
+                    interim += e.results[i][0].transcript;
+                }
+            }
+            if (final) sttBaseText = (sttBaseText ? sttBaseText + ' ' : '') + final.trim();
+            input.value = sttBaseText + (interim ? ' ' + interim : '');
+            input.scrollTop = input.scrollHeight;
+
+            if (sttPauseTimer) clearTimeout(sttPauseTimer);
+            sttPauseTimer = setTimeout(function () {
+                sttPauseTimer = null;
+                if (input.value.trim()) {
+                    send.click();
+                    sttBaseText = '';
+                    input.value = '';
+                }
+            }, 1000);
+        });
+
+        recognition.addEventListener('end', function () {
+            recognition = null;
+            if (sttActive) {
+                sttStart();
+            }
+        });
+
+        recognition.addEventListener('error', function (e) {
+            if (e.error === 'not-allowed') {
+                sttActive = false;
+                sttSetActive(false);
+                alert('<?php echo xlt('Microphone access denied.'); ?>');
+            }
+        });
+
+        recognition.start();
+    }
+
+    function sttStop() {
+        sttActive = false;
+        if (sttPauseTimer) { clearTimeout(sttPauseTimer); sttPauseTimer = null; }
+        if (recognition) { recognition.stop(); }
+        sttSetActive(false);
+    }
+
+    if (!SpeechRecognition) {
+        mic.style.display = 'none';
+    } else {
+        mic.addEventListener('click', function () {
+            if (sttActive) { sttStop(); return; }
+            sttSetActive(true);
+            sttStart();
+        });
+    }
 
     function updatePatientChip() {
         try {
