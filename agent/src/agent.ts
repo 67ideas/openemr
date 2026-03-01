@@ -32,6 +32,7 @@ import {
 } from "./verification/domainChecks.js";
 import type { DrugInteractionResult } from "./tools/drugInteraction.js";
 import type { InsuranceCoverageResult } from "./tools/insuranceCoverage.js";
+import type { AppointmentAvailabilityResult } from "./tools/appointmentAvailability.js";
 import { createEscalationTask } from "./tools/createOpenEMRTask.js";
 
 const CLINICAL_SYSTEM_PROMPT = `You are a clinical decision-support assistant helping healthcare professionals with informational queries.
@@ -120,6 +121,7 @@ async function _runAgent(
 
   let escalated = false;
   let safetyPrefix = "";
+  let escalationReason = "";
 
   let contextBlock = "";
   if (patientContext) {
@@ -166,6 +168,14 @@ Insurance data is NOT included in this context — always call insuranceCoverage
           const prefix = buildSafetyPrefix(verification);
           if (prefix) {
             safetyPrefix = prefix;
+          }
+        }
+        if (tr.toolName === "appointmentAvailabilityTool") {
+          const apptResult = tr.output as AppointmentAvailabilityResult;
+          if (apptResult.noSlotsAvailable) {
+            escalated = true;
+            escalationReason =
+              "No available appointment slots found for the requested provider and date(s).";
           }
         }
       }
@@ -235,7 +245,7 @@ Insurance data is NOT included in this context — always call insuranceCoverage
   if (escalated && patientContext) {
     const taskResult = await createEscalationTask(
       patientContext,
-      safetyPrefix || "High-risk clinical finding detected by AI agent",
+      escalationReason || safetyPrefix || "High-risk clinical finding detected by AI agent",
     );
     taskCreated = taskResult.created;
     taskUrl = taskResult.taskUrl;

@@ -31,6 +31,7 @@ type SlotResult = {
 export type AppointmentAvailabilityResult = {
   results: SlotResult[];
   source: "OpenEMR";
+  noSlotsAvailable?: boolean;
   error?: string;
 };
 
@@ -176,8 +177,6 @@ export const appointmentAvailabilityTool = tool({
       const daySlots = generateDaySlots();
       const results: SlotResult[] = [];
 
-      const baseAppUrl = process.env.OPENEMR_BASE_URL ?? "http://localhost:8300";
-
       for (const pract of practitioners) {
         const providerAppts = allAppts.filter(
           (a) => a.pce_aid_uuid && pract.uuid && a.pce_aid_uuid === pract.uuid
@@ -208,7 +207,7 @@ export const appointmentAvailabilityTool = tool({
           for (const slot of availableSlots) {
             const [h, m] = slot.split(":");
             bookingLinks[slot] =
-              `${baseAppUrl}/interface/main/calendar/add_edit_event.php?date=${dateCompact}&userid=${providerId}&starttimeh=${parseInt(h, 10)}&starttimem=${m}`;
+              `/interface/main/calendar/add_edit_event.php?date=${dateCompact}&userid=${providerId}&starttimeh=${parseInt(h, 10)}&starttimem=${m}&site=default`;
           }
 
           results.push({
@@ -223,7 +222,10 @@ export const appointmentAvailabilityTool = tool({
         }
       }
 
-      return { results, source: "OpenEMR" };
+      const noSlotsAvailable =
+        results.length > 0 && results.every((r) => r.availableSlots.length === 0);
+
+      return { results, source: "OpenEMR", noSlotsAvailable };
     } catch (err) {
       return {
         results: [],

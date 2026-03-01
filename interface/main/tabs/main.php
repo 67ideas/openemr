@@ -1055,7 +1055,16 @@ details.ai-tool-call[open] summary::before { content: '▼'; }
             if (allLinks) {
                 ul.classList.add('pill-list');
                 items.forEach(function(li) {
-                    li.querySelector('a').setAttribute('target', '_blank');
+                    var a = li.querySelector('a');
+                    if (a.getAttribute('href') && a.getAttribute('href').indexOf('add_edit_event.php') !== -1) {
+                        a.removeAttribute('target');
+                        a.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            top.dlgopen(a.getAttribute('href'), '_blank', 780, 675, '', '', {});
+                        });
+                    } else {
+                        a.setAttribute('target', '_blank');
+                    }
                 });
             }
         });
